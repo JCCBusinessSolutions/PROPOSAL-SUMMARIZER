@@ -571,6 +571,7 @@ async function processOnePDF(file){
   showLoading('Reading PDF contents…');setProgress(10);
   try{
     const ab=await file.arrayBuffer();
+    const abCopy = ab.slice(0); // preserve a copy before PDF.js detaches ab
     const pdf=await pdfjsLib.getDocument({data:ab}).promise;
     setProgress(30);updateLoadingStep('Extracting text…');
     let fullText='';
@@ -582,7 +583,14 @@ async function processOnePDF(file){
     else{data=parseSFW(fullText,file.name);product='sfw';}
     setProgress(85);updateLoadingStep('Building summary…');
     const id='p_'+Date.now();
-    const pdfUrl = URL.createObjectURL(new Blob([ab], {type:'application/pdf'}));
+    // Convert to base64 in chunks — avoids stack overflow on large PDFs
+    const uint8 = new Uint8Array(abCopy);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+    }
+    const pdfUrl = 'data:application/pdf;base64,' + btoa(binary);
     proposals.push({id,data,product,pdfUrl});
     renderSidebarItem(id,data,product);
     if(product==='slsi')renderSLSIView(id,data,pdfUrl);
@@ -751,7 +759,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="doc-header"><div class="doc-header-inner"><div><div class="doc-title">SUN Life Secure<br>'+slsiVariantLabel.replace('Sun Life Secure ','')+'</div><div class="doc-subtitle">Life Insurance Policy Summary</div><div class="product-type-tag">💼 SLSI 10</div></div><div><div class="doc-insured-name">'+d.insuredName+'</div><div class="doc-insured-meta">Age: '+d.age+'<br>Owner: '+d.owner+(d.ownerAge!=='—'?' (Age '+d.ownerAge+')':'')+'<br>Date: '+d.propDate+'</div></div></div><div class="badge-strip"><span>10-Year Pay</span><span>Coverage to Age 100</span><span>Face Amount: ₱'+fD+'</span><span>Non-Smoker</span></div></div>'+
     '<div class="save-btn-strip" style="display:flex;justify-content:flex-end;align-items:center;padding:10px 40px;background:var(--navy-light);border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;">'+
     '<span style="font-size:11px;color:var(--muted);font-weight:500;margin-right:auto;">📸 Export as HD JPG</span>'+
-    '<button class="view-pdf-btn" data-pdfurl='+(pdfUrl?JSON.stringify(pdfUrl):'""')+ ' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'+
+    '<button class="view-pdf-btn" data-pid='+id+' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'+
     '<button class="save-jpg-btn" style="background:var(--navy-mid);color:#fff;" data-saveid="'+id+'" data-page="page1" data-product="slsi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 1 — Coverage</button>'+
     '<button class="save-jpg-btn" data-saveid="'+id+'" data-page="page2" data-product="slsi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 2 — Illustration</button>'+
     '</div>'+
@@ -817,9 +825,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="cent-grid"><div class="cent-box"><div class="cent-age">80</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">85</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">90</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">95</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div></div></div>'+
     '<div class="section">'+st('📊','Cash Benefit Illustration — Key Years (4.50%)')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;"><span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
-    '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody>'+illRows+'</tbody></table></div></div>'+
-    '<div class="section">'+st('📋','Important Notes')+'<ul class="notes-list"><li><span class="dot">1</span>Life Insurance Coverage is <strong>₱'+liD+'</strong> (200%) from Day 1 to age 100.</li><li><span class="dot">2</span>Guaranteed Cash Benefits of <strong>₱'+gcbD+'/year</strong> begin Year 6 through age 100.</li><li><span class="dot">3</span>Centenarian Bonuses of ₱'+c25+' at ages <strong>80, 85, 90, and 95</strong>.</li><li><span class="dot">4</span>Dividends are <strong>not guaranteed</strong>.</li><li><span class="dot">5</span>Cooling-Off Period of 15 days (20 days for e-policy) applies.</li><li><span class="dot">6</span>Terminating early may result in a loss.</li></ul></div>'+
-    '<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">🏢 &nbsp;<strong>JCC Business Solutions Intellectual Property</strong> &nbsp;·&nbsp; SM Jaymar Castro</div></div></div>'+
+    '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody>'+illRows+'</tbody></table></div></div>'+buildSLSINotesHTML(id, d.faceInt, d.gcb)+'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">🏢 &nbsp;<strong>JCC Business Solutions Intellectual Property</strong> &nbsp;·&nbsp; SM Jaymar Castro</div></div></div>'+
     '</div>';
   container.appendChild(div);
 }
@@ -968,7 +974,7 @@ function renderSFWView(id,d,pdfUrl){
   div.innerHTML=
     '<div class="doc-header"><div class="doc-header-inner"><div><div class="doc-title">SUN Fit and Well<br>'+variantLabel.replace('SUN Fit and Well ','')+'</div><div class="doc-subtitle">Life Insurance Policy Summary</div><div class="product-type-tag">'+variantTag+'</div></div><div><div class="doc-insured-name">'+d.name+'</div><div class="doc-insured-meta">Age: '+d.age+' · '+d.smoker+'<br>Class: '+d.planClass+'<br>Date: '+d.propDate+'</div></div></div><div class="badge-strip"><span>'+payYears+'-Year Pay</span><span>Coverage to Age 100</span><span>Face: ₱'+fD+'</span><span>'+d.optionLabel+'</span></div></div>'+
     '<div class="save-btn-strip" style="display:flex;justify-content:flex-end;align-items:center;padding:10px 40px;background:var(--navy-light);border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--muted);font-weight:500;margin-right:auto;">📸 Export as HD JPG</span>'+
-    '<button class="view-pdf-btn" data-pdfurl='+(pdfUrl?JSON.stringify(pdfUrl):'""')+ ' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'+
+    '<button class="view-pdf-btn" data-pid='+id+' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'+
     '<button class="save-jpg-btn" style="background:var(--navy-mid);color:#fff;" data-saveid='+id+' data-page="page1" data-product="sfw"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 1 — Coverage</button>'+
     '<button class="save-jpg-btn" data-saveid='+id+' data-page="page2" data-product="sfw"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 2 — Cash Benefits</button></div>'+
     '<div class="doc-body">'+
@@ -1472,6 +1478,17 @@ document.addEventListener('click', function(e) {
     if (tagEl)     tagEl.textContent     = '💰 SLSI '+targetVar;
     if (badges[0]) badges[0].textContent = targetVar+'-Year Pay';
   }
+
+  // ── Rebuild Important Notes (faceInt stays same, just refresh section ID) ──
+  const slsiNotesSec = document.getElementById('slsi-notes-sec-'+vid);
+  if (slsiNotesSec) {
+    const proposal = proposals.find(p => p.id === vid);
+    const fi  = proposal ? (proposal.data.faceInt || 1000000) : 1000000;
+    const gcb = proposal ? (proposal.data.gcb     || fi*0.06) : fi*0.06;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildSLSINotesHTML(vid, fi, gcb);
+    slsiNotesSec.replaceWith(tmp.firstChild);
+  }
 });
 
 // ── EL5 ILLUSTRATION BUILDER — shared by renderer + variant switcher ──
@@ -1582,6 +1599,50 @@ function buildEL5BoosterHTML(id, pay, annP, annualPremiumStr) {
       '<th style="text-align:right;">Estimated Amount</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table>'+
   '</div>';
+}
+
+// ── SLSI IMPORTANT NOTES BUILDER — shared by renderer + variant switcher ──
+function buildSLSINotesHTML(id, faceInt, gcb) {
+  const fmtN2 = n => Math.round(n).toLocaleString('en-US');
+  const liD  = fmtN2(faceInt * 2)    + '.00';
+  const gcbD = fmtN2(gcb)             ;
+  const c25  = fmtN2(faceInt * 0.25) ;
+  const items = [
+    'Life Insurance Coverage is <strong>₱'+liD+'</strong> (200%) from Day 1 to age 100.',
+    'Guaranteed Cash Benefits of <strong>₱'+gcbD+'/year</strong> begin Year 6 through age 100.',
+    'Centenarian Bonuses of ₱'+c25+' at ages <strong>80, 85, 90, and 95</strong>.',
+    'Dividends are <strong>not guaranteed</strong>.',
+    'Cooling-Off Period of 15 days (20 days for e-policy) applies.',
+    'Terminating early may result in a loss.',
+  ];
+  const lis = items.map((txt, i) =>
+    '<li><span class="dot">'+(i+1)+'</span>'+txt+'</li>'
+  ).join('');
+  return '<div class="section" id="slsi-notes-sec-'+id+'">'
+    +'<div class="section-title">📋 Important Notes</div>'
+    +'<ul class="notes-list">'+lis+'</ul>'
+    +'</div>';
+}
+
+// ── EL5 IMPORTANT NOTES BUILDER — shared by renderer + variant switcher ──
+function buildEL5NotesHTML(id, pay) {
+  const bonusPct  = pay === 10 ? '25%' : '12.5%';
+  const items = [
+    'Investment risks are <strong>borne solely by the policy owner</strong>. Fund values are not guaranteed.',
+    'Premium payment period of <strong>'+pay+' years</strong> is <strong>not guaranteed</strong>. Additional premiums may be required if fund value is insufficient.',
+    'Premium Bonus (<strong>'+bonusPct+'</strong>) credited at end of Year <strong>'+pay+'</strong> with no withdrawals in Years 1–'+pay+'. Booster credited every 5 years from Year 10.',
+    'Loyalty Bonus (1% of avg monthly fund balance) credited from Year 10 every 2 years. <strong>Non-guaranteed.</strong>',
+    'Surrender charges: Years 1–5 (55%, 50%, 45%, 35%, 10%). No charge from Year 6 onwards.',
+    'Policy terminates at end of 60th year at 0% return if no additional premium is paid.',
+    'Cooling-Off Period: 15 days (20 days for e-policy) from receipt of policy document.',
+  ];
+  const lis = items.map((txt, i) =>
+    '<li><span class="dot">'+(i+1)+'</span>'+txt+'</li>'
+  ).join('');
+  return '<div class="section" id="el5-notes-sec-'+id+'">'
+    +'<div class="section-title">📋 Important Notes</div>'
+    +'<ul class="notes-list">'+lis+'</ul>'
+    +'</div>';
 }
 
 // ── EL5/10 VARIANT SWITCHER ──
@@ -1700,21 +1761,41 @@ document.addEventListener('click', function(e) {
     boosterSec.replaceWith(tmp.firstChild);
   }
 
+  // ── Rebuild Important Notes with new PAY period ──
+  const notesSec = document.getElementById('el5-notes-sec-'+vid);
+  if (notesSec) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildEL5NotesHTML(vid, targetVar);
+    notesSec.replaceWith(tmp.firstChild);
+  }
+
   // Reset payment mode to Annual
   const pmWrap = document.querySelector('[data-key="el5-'+vid+'"]');
   if (pmWrap) {
     pmWrap.querySelectorAll('.pm-tab').forEach(t => t.classList.remove('active'));
     const annTab = pmWrap.querySelector('[data-mode="annual"]');
     if (annTab) annTab.classList.add('active');
-    pmWrap.dataset.annual = annP;
+    pmWrap.dataset.annual    = annP;
+    pmWrap.dataset.payperiod = targetVar;
     const mainEl   = document.getElementById('pm-main-el5-'+vid);
     const periodEl = document.getElementById('pm-period-el5-'+vid);
     const noteEl   = document.getElementById('pm-note-el5-'+vid);
     const breakEl  = document.getElementById('pm-break-el5-'+vid);
+    const cardEl   = document.getElementById('pm-card-el5-'+vid);
     if (mainEl)   mainEl.textContent   = '₱'+fmtV(annP);
     if (periodEl) periodEl.textContent = '/year';
     if (noteEl)   { noteEl.textContent = ''; noteEl.style.display = 'none'; }
     if (breakEl)  breakEl.innerHTML    = '<strong>Annual Mode</strong> &nbsp;·&nbsp; ₱'+fmtV(annP)+' per year &nbsp;·&nbsp; No modal premium applied';
+    if (cardEl) {
+      cardEl.textContent = '₱'+fmtV(annP);
+      const card = cardEl.closest('.p-card');
+      if (card) {
+        const lbl = card.querySelector('.p-card-label');
+        const sub = card.querySelector('.p-card-sub');
+        if (lbl) lbl.textContent = 'Annual Premium';
+        if (sub) sub.textContent = 'Pay for '+targetVar+' years';
+      }
+    }
   }
 });
 
@@ -1798,7 +1879,41 @@ document.addEventListener('click', function(e) {
     $el('pm-note-' + key).style.display = showNote ? 'inline-block' : 'none';
   }
   if ($el('pm-break-'  + key)) $el('pm-break-'  + key).innerHTML = breakdown;
-  if ($el('pm-card-'   + key)) $el('pm-card-'   + key).textContent = amount;
+  if ($el('pm-card-'   + key)) {
+    $el('pm-card-' + key).textContent = amount;
+    // Update the p-card label and sub-text to reflect the selected mode
+    const card = $el('pm-card-' + key).closest('.p-card');
+    if (card) {
+      const labelEl = card.querySelector('.p-card-label');
+      const subEl   = card.querySelector('.p-card-sub');
+      if (labelEl) {
+        labelEl.textContent = mode === 'annual'
+          ? 'Annual Premium'
+          : mode === 'semi'
+          ? 'Semi-Annual Premium'
+          : 'Quarterly Premium';
+      }
+      if (subEl && isEL5) {
+        // For EL5: show per-payment context clearly
+        const payYrs = wrap.dataset.payperiod || '';
+        if (mode === 'annual') {
+          subEl.textContent = 'Pay for ' + (payYrs||'') + ' years';
+        } else if (mode === 'semi') {
+          subEl.textContent = '2× per year · ₱' + fmt(annual) + ' annual total';
+        } else {
+          subEl.textContent = '3× per year · ₱' + fmt(annual) + ' annual total';
+        }
+      } else if (subEl && !isEL5) {
+        if (mode === 'annual') {
+          subEl.textContent = 'per year · no modal premium';
+        } else if (mode === 'semi') {
+          subEl.textContent = '2× per year · 5% modal premium';
+        } else {
+          subEl.textContent = '4× per year · 10% modal premium';
+        }
+      }
+    }
+  }
 
 });
 
@@ -1889,14 +2004,14 @@ function renderEL5View(id, d, pdfUrl){
     +'<div class="badge-strip"><span>'+d.payPeriod+'-Year Pay</span><span>Coverage to Age 100</span><span>Annual Premium: ₱'+d.annualPremium+'</span><span>'+d.fund+'</span></div></div>'
     +'<div class="save-btn-strip" style="display:flex;justify-content:flex-end;align-items:center;padding:10px 40px;background:var(--navy-light);border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;">'
       +'<span style="font-size:11px;color:var(--muted);font-weight:500;margin-right:auto;">📸 Export as HD PNG</span>'
-      +'<button class="view-pdf-btn" data-pdfurl='+(pdfUrl?JSON.stringify(pdfUrl):'""')+ ' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'
+      +'<button class="view-pdf-btn" data-pid='+id+' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PDF</button>'
       +'<button class="save-jpg-btn" style="background:var(--navy-mid);color:#fff;" data-saveid="'+id+'" data-page="page1" data-product="el5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 1 — Overview</button>'
       +'<button class="save-jpg-btn" data-saveid="'+id+'" data-page="page2" data-product="el5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 2 — Projections</button>'
     +'</div>'
     +'<div class="doc-body">'
     +'<div class="notice"><span style="font-size:14px;flex-shrink:0;">⚠</span><span>This is an <strong>illustration only — not a contract of insurance</strong>. Fund values are not guaranteed and depend on actual investment performance.</span></div>'
     +'<div class="section">'+st('💳','Premium at a Glance')
-      +'<div class="payment-mode-wrap" data-key="el5-'+id+'" data-annual="'+annP+'">'
+      +'<div class="payment-mode-wrap" data-key="el5-'+id+'" data-annual="'+annP+'" data-payperiod="'+d.payPeriod+'">'
         +'<div class="payment-mode-label">💳 &nbsp;Select Payment Mode</div>'
         +'<div class="payment-mode-tabs">'
           +'<button class="pm-tab active" data-mode="annual">Annual</button>'
@@ -1968,17 +2083,7 @@ function renderEL5View(id, d, pdfUrl){
     +'</div>'
     +buildEL5IllusHTML(id, d.payPeriod||5, annP, d.ageNum||30, d.rows, d.fund)
     +buildEL5BoosterHTML(id, d.payPeriod||5, annP, d.annualPremium)
-    +'<div class="section">'+st('📋','Important Notes')
-      +'<ul class="notes-list">'
-        +'<li><span class="dot">1</span>Investment risks are <strong>borne solely by the policy owner</strong>. Fund values are not guaranteed.</li>'
-        +'<li><span class="dot">2</span>Premium payment period of '+d.payPeriod+' years is <strong>not guaranteed</strong>. Additional premiums may be required if fund value is insufficient.</li>'
-        +'<li><span class="dot">3</span>Premium Bonus ('+(d.payPeriod===10?'25%':'12.5%')+') credited at end of Year '+d.payPeriod+' with no withdrawals in Years 1–'+d.payPeriod+'. Booster credited every 5 years from Year 10.</li>'
-        +'<li><span class="dot">4</span>Loyalty Bonus (1% of avg monthly fund balance) credited from Year 10 every 2 years. <strong>Non-guaranteed.</strong></li>'
-        +'<li><span class="dot">5</span>Surrender charges: Years 1–5 (55%, 50%, 45%, 35%, 10%). No charge from Year 6 onwards.</li>'
-        +'<li><span class="dot">6</span>Policy terminates at end of 60th year at 0% return if no additional premium is paid.</li>'
-        +'<li><span class="dot">7</span>Cooling-Off Period: 15 days (20 days for e-policy) from receipt of policy document.</li>'
-      +'</ul>'
-    +'</div>'
+    +buildEL5NotesHTML(id, d.payPeriod||5)
     +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p>'
       +'<p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>This is only an illustration — not a contract of insurance.</strong></p>'
       +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">🏢 &nbsp;<strong>JCC Business Solutions Intellectual Property</strong> &nbsp;·&nbsp; SM Jaymar Castro</div></div>'
@@ -2025,6 +2130,8 @@ window.addEventListener('orientationchange',function(){
 });
 (function(){document.documentElement.style.setProperty('--vh',(window.innerHeight*0.01)+'px');})();
 </script>
+
+</body>
 <!-- PDF VIEWER MODAL -->
 <div id="pdfViewerModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.82);flex-direction:column;">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#0D2340;flex-shrink:0;">
@@ -2032,9 +2139,9 @@ window.addEventListener('orientationchange',function(){
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       Proposal PDF Viewer
     </span>
-    <button onclick="closePDFModal()" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:18px;line-height:1;cursor:pointer;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">✕</button>
+    <button onclick="closePDFModal()" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:18px;line-height:1;cursor:pointer;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">&#x2715;</button>
   </div>
-  <iframe id="pdfViewerFrame" src="" style="flex:1;width:100%;border:none;background:#525659;"></iframe>
+  <div id="pdfViewerFrame" style="flex:1;width:100%;background:#525659;overflow:auto;"></div>
 </div>
 
 <script>
@@ -2042,7 +2149,7 @@ function closePDFModal() {
   var modal = document.getElementById('pdfViewerModal');
   var frame = document.getElementById('pdfViewerFrame');
   modal.style.display = 'none';
-  frame.src = '';
+  frame.innerHTML = '';
   document.body.style.overflow = '';
 }
 
@@ -2050,13 +2157,43 @@ function closePDFModal() {
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.view-pdf-btn');
   if (!btn) return;
-  var url = btn.getAttribute('data-pdfurl');
-  if (!url || url === '""' || url === '') return;
+  var pid = btn.getAttribute('data-pid');
+  if (!pid) return;
+  var proposal = proposals.find(function(p){ return p.id === pid; });
+  var url = proposal ? proposal.pdfUrl : null;
+  if (!url) return;
   var modal = document.getElementById('pdfViewerModal');
   var frame = document.getElementById('pdfViewerFrame');
-  frame.src = url;
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  frame.innerHTML = '<div style="color:#aaa;padding:20px;text-align:center;font-size:13px;">Loading PDF…</div>';
+
+  // Use PDF.js (already loaded) to render to canvas — works on iOS Safari
+  var b64 = url.split(',')[1];
+  var binary = atob(b64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdfDoc) {
+    frame.innerHTML = '';
+    var numPages = pdfDoc.numPages;
+    var renderPage = function(pageNum) {
+      pdfDoc.getPage(pageNum).then(function(page) {
+        var viewport = page.getViewport({ scale: 1.5 });
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.cssText = 'display:block;width:100%;max-width:100%;margin:0 auto 8px;background:#fff;';
+        frame.appendChild(canvas);
+        page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function() {
+          if (pageNum < numPages) renderPage(pageNum + 1);
+        });
+      });
+    };
+    renderPage(1);
+  }).catch(function(err) {
+    frame.innerHTML = '<p style="color:#fff;padding:20px;text-align:center;">Could not render PDF: ' + err.message + '</p>';
+  });
 });
 
 // Close on backdrop click
