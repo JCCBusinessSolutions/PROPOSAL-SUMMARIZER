@@ -1,2 +1,2 @@
-# GST-PROPOSAL-SUMMARIZER
+# PROPOSAL-SUMMARIZER
 A proposal summarizer for SL Advisors
