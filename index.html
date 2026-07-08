@@ -823,6 +823,9 @@ window.logoutUser=function(){
 };
 const proposals=[];
 let activeId=null,currentProduct='slsi';
+// Safe age parser: treats 0 as a VALID age (e.g. newborn/baby insured) instead of
+// falling back, unlike `parseInt(x)||fallback` which incorrectly discards 0 (falsy).
+function safeAge(v,fallback){const n=parseInt(v);return isNaN(n)?fallback:n;}
 
 // PRODUCT SWITCHER
 function switchProduct(prod){
@@ -896,7 +899,7 @@ function parseSLSI(text,filename){
   const insuredRaw=get(/On the Life of\s*:?\s*([A-Z][A-Z\s,()]+?)(?=Age Last Birthday|Currency|\n)/i,'Unknown');
   const insuredName=insuredRaw.replace(/\(CLIENT\)/i,'').trim();
   const age=get(/Age Last Birthday\s*:?\s*(\d+\s*\([^)]+\))/i);
-  const ageNum=parseInt(age)||4;
+  const ageNum=(function(){const n=parseInt(age);return isNaN(n)?4:n;})();
   const ownerRaw=get(/For the Decision of\s*:?\s*([A-Z][A-Z\s,()]+?)(?=Age\s*\d|\(Age|\n)/i,'\u2014');
   const owner=ownerRaw.replace(/\(CLIENT\)/i,'').trim();
   const ownerAge=get(/\(Age\s*(\d+)\)/i,'\u2014');
@@ -1236,7 +1239,7 @@ function renderSFWView(id,d,pdfUrl){
   const faceRaw=(d.face||'1,000,000.00').replace(/,/g,'').replace(/\..*$/,'');
   const faceInt=parseInt(faceRaw)||1000000;
   const fD=faceInt.toLocaleString('en-US')+'.00';
-  const ageNum=parseInt(d.age)||33;
+  const ageNum=(function(){const n=parseInt(d.age);return isNaN(n)?33:n;})();
   const payYears=d.payYears||10;
   const variantLabel=d.variantLabel||'SUN Fit and Well Advantage 10';
   const variantShort=d.variantShort||'SFW Adv 10';
@@ -1425,7 +1428,7 @@ function renderSidebarItem(id,data,product){
   const list=document.getElementById('proposalList');
   const item=document.createElement('div');item.className='proposal-item';item.id='sidebar_'+id;
   const name=product==='slsi'?data.insuredName:data.name;
-  const meta=product==='slsi'?('Age '+(data.ageNum||parseInt(data.age)||'?')+' · SLSI 10'):product==='el5'?('Age '+(parseInt(data.age)||'?')+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(parseInt(data.age)||'?')+' · Single Premium ₱'+data.singlePremium):('Age '+(parseInt(data.age)||'?')+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
+  const meta=product==='slsi'?('Age '+(safeAge(data.ageNum!==undefined?data.ageNum:data.age,'?'))+' · SLSI 10'):product==='el5'?('Age '+(safeAge(data.age,'?'))+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):('Age '+(safeAge(data.age,'?'))+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
   const badge=product==='slsi'?'SLSI':product==='el5'?('EL'+data.payPeriod):product==='mx1'?'MX1':'SFW';
   item.innerHTML='<div class="p-item-icon">📋</div><div class="p-item-info"><div class="p-item-name">'+name+' <span class="p-item-badge">'+badge+'</span></div><div class="p-item-meta">'+meta+'</div></div><button class="p-item-delete" onclick="deleteProposal(\''+id+'\',event)" title="Remove">✕</button>';
   item.onclick=()=>setActiveProposal(id);
@@ -1836,7 +1839,7 @@ function buildEL5IllusHTML(id, pay, annP, ageNum, rows, fund) {
     let pv3=0, pv6=0, pv7=0;
     computed = [];
     for(let yr=1; yr<=25; yr++){
-      const attAge = (ageNum||30) + yr;
+      const attAge = (safeAge(ageNum,30)) + yr;
       let premPaid=0, totalCharge=0, premCharge=0, periodicChargeAnnual=0;
       if(yr<=pay){
         premPaid = annP;
@@ -2110,7 +2113,7 @@ document.addEventListener('click', function(e) {
     const proposal = proposals.find(p => p.id === vid);
     const rows  = proposal ? (proposal.data.rows || []) : [];
     const fund  = proposal ? (proposal.data.fund || '') : '';
-    const ageN  = proposal ? (proposal.data.ageNum || 30) : 30;
+    const ageN  = proposal ? safeAge(proposal.data.ageNum,30) : 30;
     const newIllusHTML = buildEL5IllusHTML(vid, targetVar, annP, ageN, rows, fund);
     const tmp = document.createElement('div');
     tmp.innerHTML = newIllusHTML;
@@ -2293,7 +2296,7 @@ function parseEL5(text, filename){
   const nameRaw=get(/On the Life of\s*:\s*([A-Z][A-Z\s,()]+?)(?=Age Last Birthday|Currency|\n)/i,'Unknown');
   const name=nameRaw.replace(/\(CLIENT\)/i,'').trim();
   const age=get(/Age Last Birthday\s*:\s*(\d+\s*\([^)]+\))/i);
-  const ageNum=parseInt(age)||30;
+  const ageNum=(function(){const n=parseInt(age);return isNaN(n)?30:n;})();
   const smoker=/Non.Smoker/i.test(text)?'Non-Smoker':'Smoker';
   const psAmts=[];const psRx=/Ps\s*([\d,]+\.\d{2})/g;let pm;
   while((pm=psRx.exec(text))!==null) psAmts.push(pm[1]);
@@ -2605,7 +2608,7 @@ function renderEL5View(id, d, pdfUrl){
         +'<tr class="total-row"><td style="text-align:center;">Year 6+</td><td style="text-align:center;color:var(--green);font-weight:700;">No Surrender Charge</td><td>Full fund value available</td></tr>'
       +'</tbody></table>'
     +'</div>'
-    +buildEL5IllusHTML(id, d.payPeriod||5, annP, d.ageNum||30, d.rows, d.fund)
+    +buildEL5IllusHTML(id, d.payPeriod||5, annP, safeAge(d.ageNum,30), d.rows, d.fund)
     +buildEL5BoosterHTML(id, d.payPeriod||5, annP, d.annualPremium)
     +buildEL5NotesHTML(id, d.payPeriod||5)
     +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p>'
@@ -2625,7 +2628,7 @@ function parseMX1(text, filename){
   const nameRaw=get(/On the Life of\s*:\s*([A-Z][A-Z\s,()]+?)(?=Age Last Birthday|Currency|\n)/i,'Unknown');
   const name=nameRaw.replace(/\(CLIENT\)/i,'').trim();
   const age=get(/Age Last Birthday\s*:\s*(\d+\s*\([^)]+\))/i);
-  const ageNum=parseInt(age)||30;
+  const ageNum=(function(){const n=parseInt(age);return isNaN(n)?30:n;})();
   const smoker=/Non.Smoker/i.test(text)?'Non-Smoker':'Smoker';
   const singlePremium=get(/Total Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||get(/Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||'250,000.00';
   const spInt=parseInt(singlePremium.replace(/,/g,'').replace(/\..*/,''))||250000;
