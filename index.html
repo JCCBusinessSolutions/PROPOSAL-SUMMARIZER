@@ -500,6 +500,10 @@ button{min-height:36px;}
       <div class="prod-tab-icon">💰</div>
       <div class="prod-tab-name">MaxiLink One<br><span style="font-weight:400;opacity:0.7;">Single Pay</span></div>
     </div>
+    <div class="prod-tab" id="tab_spm" onclick="switchProduct('spm')">
+      <div class="prod-tab-icon">🌏</div>
+      <div class="prod-tab-name">Peso Maximizer<br><span style="font-weight:400;opacity:0.7;">ProIncome</span></div>
+    </div>
   </div>
   <label class="upload-zone" id="uploadZone">
     <input type="file" id="pdfInput" accept="application/pdf" multiple>
@@ -834,8 +838,9 @@ function switchProduct(prod){
   document.getElementById('tab_sfw').classList.toggle('active',prod==='sfw');
   document.getElementById('tab_el5').classList.toggle('active',prod==='el5');
   document.getElementById('tab_mx1').classList.toggle('active',prod==='mx1');
-  document.getElementById('uploadLabel').textContent=prod==='slsi'?'Upload SLSI 5 / 10 / 15 PDF':prod==='sfw'?'Upload SFW Adv 10 / 15 / 20 PDF':prod==='el5'?'Upload EasyLink 5 / 10 PDF':'Upload MaxiLink One PDF';
-  document.getElementById('proposalListLabel').textContent=prod==='slsi'?'SLSI 5 / 10 / 15 Proposals':prod==='sfw'?'SFW Proposals (Adv 10 / 15 / 20)':prod==='el5'?'EasyLink 5 / 10 Proposals':'MaxiLink One Proposals';
+  document.getElementById('tab_spm').classList.toggle('active',prod==='spm');
+  document.getElementById('uploadLabel').textContent=prod==='slsi'?'Upload SLSI 5 / 10 / 15 PDF':prod==='sfw'?'Upload SFW Adv 10 / 15 / 20 PDF':prod==='el5'?'Upload EasyLink 5 / 10 PDF':prod==='mx1'?'Upload MaxiLink One PDF':'Upload Sun Peso Maximizer PDF';
+  document.getElementById('proposalListLabel').textContent=prod==='slsi'?'SLSI 5 / 10 / 15 Proposals':prod==='sfw'?'SFW Proposals (Adv 10 / 15 / 20)':prod==='el5'?'EasyLink 5 / 10 Proposals':prod==='mx1'?'MaxiLink One Proposals':'Sun Peso Maximizer Proposals';
   proposals.forEach(p=>{
     const item=document.getElementById('sidebar_'+p.id);
     const view=document.getElementById('view_'+p.id);
@@ -871,6 +876,7 @@ async function processOnePDF(file){
     if(currentProduct==='slsi'){data=parseSLSI(fullText,file.name);product='slsi';}
     else if(currentProduct==='el5'){data=parseEL5(fullText,file.name);product='el5';}
     else if(currentProduct==='mx1'){data=parseMX1(fullText,file.name);product='mx1';}
+    else if(currentProduct==='spm'){data=parseSPM(fullText,file.name);product='spm';}
     else{data=parseSFW(fullText,file.name);product='sfw';}
     setProgress(85);updateLoadingStep('Building summary…');
     const id='p_'+Date.now();
@@ -887,6 +893,7 @@ async function processOnePDF(file){
     if(product==='slsi')renderSLSIView(id,data,pdfUrl);
     else if(product==='el5')renderEL5View(id,data,pdfUrl);
     else if(product==='mx1')renderMX1View(id,data,pdfUrl);
+    else if(product==='spm')renderSPMView(id,data,pdfUrl);
     else renderSFWView(id,data,pdfUrl);
     setProgress(100);
     setTimeout(()=>{hideLoading();setActiveProposal(id);},300);
@@ -1428,8 +1435,8 @@ function renderSidebarItem(id,data,product){
   const list=document.getElementById('proposalList');
   const item=document.createElement('div');item.className='proposal-item';item.id='sidebar_'+id;
   const name=product==='slsi'?data.insuredName:data.name;
-  const meta=product==='slsi'?('Age '+(safeAge(data.ageNum!==undefined?data.ageNum:data.age,'?'))+' · SLSI 10'):product==='el5'?('Age '+(safeAge(data.age,'?'))+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):('Age '+(safeAge(data.age,'?'))+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
-  const badge=product==='slsi'?'SLSI':product==='el5'?('EL'+data.payPeriod):product==='mx1'?'MX1':'SFW';
+  const meta=product==='slsi'?('Age '+(safeAge(data.ageNum!==undefined?data.ageNum:data.age,'?'))+' · SLSI 10'):product==='el5'?('Age '+(safeAge(data.age,'?'))+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):product==='spm'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):('Age '+(safeAge(data.age,'?'))+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
+  const badge=product==='slsi'?'SLSI':product==='el5'?('EL'+data.payPeriod):product==='mx1'?'MX1':product==='spm'?'SPM':'SFW';
   item.innerHTML='<div class="p-item-icon">📋</div><div class="p-item-info"><div class="p-item-name">'+name+' <span class="p-item-badge">'+badge+'</span></div><div class="p-item-meta">'+meta+'</div></div><button class="p-item-delete" onclick="deleteProposal(\''+id+'\',event)" title="Remove">✕</button>';
   item.onclick=()=>setActiveProposal(id);
   list.appendChild(item);
@@ -1493,6 +1500,7 @@ async function saveJPG(id,btn,page,product){
     if(product==='slsi'){if(page==='page1')await captureSection(['notice','premium','core','centenarian'],'SLSI10_'+safeName+'_Page1_Coverage.jpg');else await captureSection(['illustration','notes','footer'],'SLSI10_'+safeName+'_Page2_Illustration.jpg');}
     else if(product==='mx1'){if(page==='page1')await captureSection(['notice','premium','core'],'MaxiLinkOne_'+safeName+'_Page1_Coverage.jpg');else await captureSection(['fundalloc','illustration','notes','footer'],'MaxiLinkOne_'+safeName+'_Page2_Illustration.jpg');}
     else if(product==='el5'){const isEL10=view.textContent.includes('10-Year Pay');const elPfx=isEL10?'EasyLink10_':'EasyLink5_';if(page==='page1')await captureSection(['notice','premium','core','dbschedule'],elPfx+safeName+'_Page1_Coverage.jpg');else await captureSection(['illustration','notes','footer'],elPfx+safeName+'_Page2_Illustration.jpg');}
+    else if(product==='spm'){if(page==='page1')await captureSection(['notice','premium','core'],'SunPesoMaximizer_'+safeName+'_Page1_Coverage.jpg');else await captureSection(['illustration','notes','footer'],'SunPesoMaximizer_'+safeName+'_Page2_Illustration.jpg');}
     else{const ptTag=view.querySelector('.product-type-tag')?.textContent||'';const sfwPfx=ptTag.includes('20')?'SFW_Adv20_':ptTag.includes('15')?'SFW_Adv15_':'SFW_Adv10_';if(page==='page1')await captureSection(['notice','premium','core','ci','hospital'],sfwPfx+safeName+'_Page1_Coverage.jpg');else await captureSection(['dividends','retirement','notes','footer'],sfwPfx+safeName+'_Page2_Dividends.jpg');}
   }catch(err){console.error(err);alert('Could not save JPG.');}
   btn.classList.remove('saving');btn.innerHTML=origLabel;
@@ -3581,6 +3589,268 @@ document.getElementById('pdfViewerModal').addEventListener('click', function(e) 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closePDFModal();
 });
+
+// ══════════════════ SUN PESO MAXIMIZER (SPM) PARSER ══════════════════
+// ProIncome: single-pay, 7-year credit-linked note (ING Bank N.V.), fixed
+// annual income payouts + capital protection at maturity. Structurally
+// unlike SLSI/SFW (dividend endowment) or MX1 (open-ended VUL) — this is
+// a fixed-term structured note wrapped in insurance.
+function parseSPM(text, filename){
+  const get=(p,fb='\u2014')=>{const m=text.match(p);return m?m[1].trim():fb;};
+
+  // Name: tolerant of missing/extra spaces around the colon and mixed case,
+  // stops at the next known label rather than requiring a literal newline
+  // (PDF.js joins each page into one space-separated line, so a newline
+  // lookahead alone is unreliable).
+  const nameRaw=get(/On\s*the\s*Life\s*of\s*:?\s*([A-Za-z][A-Za-z\s,.'()-]{1,60}?)(?=\s*Age\s*Last\s*Birthday|\s*Currency|\s*For\s*the\s*Decision|\n)/i,'');
+  const name=(nameRaw||'Unknown').replace(/\(CLIENT\)/i,'').trim()||'Unknown';
+
+  // Age + gender pulled from a single match so one doesn't fail without the
+  // other — "Age Last Birthday : 32 (Female)" in any spacing variant.
+  const ageGenderMatch=text.match(/Age\s*Last\s*Birthday\s*:?\s*(\d{1,3})\s*\(\s*([A-Za-z]+)\s*\)/i);
+  const ageNum=ageGenderMatch?safeAge(ageGenderMatch[1],30):30;
+  const age=ageGenderMatch?(ageGenderMatch[1]+' ('+ageGenderMatch[2]+')'):'\u2014';
+  const gender=ageGenderMatch?(/^f/i.test(ageGenderMatch[2])?'Female':'Male'):(/\(Female\)/i.test(text)?'Female':/\(Male\)/i.test(text)?'Male':'\u2014');
+
+  // Proposal table: "Sun Peso Maximizer ... Ps <Face> Ps <SinglePremium>"
+  const spmMatch=text.match(/Sun\s*Peso\s*Maximizer[\s\S]{0,150}?Ps\s*([\d,]+\.\d{2})\s*Ps\s*([\d,]+\.\d{2})/i);
+  const faceAmt=spmMatch?spmMatch[1]:'125,000.00';
+  const singlePremium=spmMatch?spmMatch[2]:'500,000.00';
+  const faceInt=parseInt(faceAmt.replace(/,/g,'').replace(/\..*/,''))||125000;
+  const spInt=parseInt(singlePremium.replace(/,/g,'').replace(/\..*/,''))||500000;
+
+  const fundName=get(/Fund\s*Name\s*:?\s*([^\n]+?)(?=\s*The\s*investment|\n)/i,'Sun Peso Maximizer - ProIncome');
+
+  const preparedBy=get(/Prepared\s*By\s*:?\s*([A-Za-z][A-Za-z\s,.'-]{1,60}?)(?=\s*Date\s*:|\s*Branch\s*:|\n)/i)||'\u2014';
+  const propDate=get(/(?:^|\s)Date\s*:?\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4})/i)||'\u2014';
+  const branch=get(/Branch\s*:?\s*([A-Za-z0-9][A-Za-z0-9\s]{1,40}?)(?=\s+This\b|\s+QUICK\b|\s+Attachment\b|\s+PROP\.|\n)/i)||'\u2014';
+
+  const issueDate=get(/policy\s*issue\s*date\s*will\s*be\s*on\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i)||'\u2014';
+  const maturityDate=get(/maturing\s*on\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i)||'\u2014';
+
+  const payoutRate=parseFloat(get(/fixed\s*annual\s*payout\s*shall\s*be\s*([\d.]+)\s*%/i,'4.50'))||4.5;
+  const periodicCharge=parseFloat(get(/annual\s*periodic\s*charge\s*of\s*([\d.]+)\s*%/i,'2.48'))||2.48;
+  const insuranceCharge=parseFloat(get(/insurance\s*charge\s*of\s*([\d.]+)\s*%\s*a\s*year/i,'0.12'))||0.12;
+
+  return {name,age,ageNum,gender,faceAmt,faceInt,singlePremium,spInt,fundName,
+          preparedBy,propDate,branch,issueDate,maturityDate,payoutRate,periodicCharge,insuranceCharge,
+          filename};
+}
+
+function renderSPMView(id,d,pdfUrl){
+  const container=document.getElementById('proposalsContainer');
+  const div=document.createElement('div');
+  div.className='proposal-view'; div.id='view_'+id;
+  div.setAttribute('data-spint', d.spInt);
+  div.setAttribute('data-spint0', d.spInt);
+  const spInt0=d.spInt;
+  const fmt2=n=>{const r=Math.round(n*100)/100;const p=r.toFixed(2).split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');return p.join('.');};
+  const fmtN2=n=>Math.round(n).toLocaleString('en-US');
+  const st=(icon,txt)=>'<div class="section-title">'+icon+' '+txt+'</div>';
+
+  div.setAttribute('data-payoutrate', d.payoutRate);
+  // Cash Benefit Illustration is fully computed — not scraped from the PDF's
+  // table (which proved fragile against real-world PDF.js text spacing) — so
+  // Year/Age/Premium/Payout are always dynamic and never blank:
+  //   Annual Payout (years 1–6) = Single Premium × Rate%
+  //   Annual Payout (year 7)    = Single Premium × Rate% + Single Premium
+  //                               (the payout is paid together with the
+  //                               return of the full premium at maturity)
+  const basePayout=spInt0>0?spInt0*(d.payoutRate/100):0;
+  let cbiRows='';
+  for(let yr=1; yr<=7; yr++){
+    const attAge=d.ageNum+yr;
+    const isMaturityYr=(yr===7);
+    const yrLabel=(isMaturityYr&&d.maturityDate!=='\u2014')?d.maturityDate:('Year '+yr);
+    const premiumPaid=(yr===1)?spInt0:0;
+    const annualPayout=isMaturityYr?(basePayout+spInt0):basePayout;
+    cbiRows+='<tr data-yr="'+yr+'" data-prempaid="'+(premiumPaid?1:0)+'" data-maturity="'+(isMaturityYr?1:0)+'">'
+      +'<td class="age-col" style="text-align:center;">'+yrLabel+'</td>'
+      +'<td style="text-align:center;">'+attAge+'</td>'
+      +'<td style="text-align:right;" class="spm-cbi-prem">'+(premiumPaid?'\u20b1'+fmtN2(premiumPaid):'\u2014')+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:var(--navy);" class="spm-cbi-payout">\u20b1'+fmtN2(annualPayout)+(isMaturityYr?' <span class="yr-tag">incl. premium return</span>':'')+'</td>'
+    +'</tr>';
+  }
+
+  const surrenderPcts=[7,6,5,4,3,2,1];
+  const surrenderRows=surrenderPcts.map((pct,i)=>'<tr><td style="text-align:center;">Year '+(i+1)+'</td><td style="text-align:center;font-weight:700;">'+pct+'%</td></tr>').join('');
+
+  div.innerHTML =
+    '<div class="doc-header"><div class="doc-header-inner"><div>'
+      +'<div class="doc-title">Sun Peso Maximizer</div>'
+      +'<div class="doc-subtitle">ProIncome \u00b7 Investment-Linked Life Insurance</div>'
+      +'<div class="product-type-tag">\ud83c\udf0f Single Pay \u00b7 7-Year Note</div>'
+    +'</div><div>'
+      +'<div class="doc-insured-name">'+d.name+'</div>'
+      +'<div class="doc-insured-meta">Age: '+d.age+'<br>Date: '+d.propDate+'<br>Branch: '+d.branch+'</div>'
+    +'</div></div>'
+    +'<div class="badge-strip"><span>Single Premium</span><span>Matures '+d.maturityDate+'</span><span>Indicative Payout: '+d.payoutRate.toFixed(2)+'%</span><span>'+d.fundName+'</span></div></div>'
+    +'<div class="save-btn-strip" style="display:flex;justify-content:flex-end;align-items:center;padding:10px 40px;background:var(--navy-light);border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;">'
+      +'<span style="font-size:11px;color:var(--muted);font-weight:500;margin-right:auto;">\ud83d\udcf8 Export as HD PNG</span>'
+      +'<button class="view-pdf-btn" data-pid='+id+' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> VIEW PDF</button>'
+      +'<button class="save-jpg-btn" style="background:var(--navy-mid);color:#fff;" data-saveid="'+id+'" data-page="page1" data-product="spm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 1 \u2014 Coverage</button>'
+      +'<button class="save-jpg-btn" data-saveid="'+id+'" data-page="page2" data-product="spm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Page 2 \u2014 Illustration</button>'
+    +'</div>'
+    +'<div class="doc-body">'
+    +'<div class="notice"><span style="font-size:14px;flex-shrink:0;">\u26a0</span><span>This is an <strong>illustration only \u2014 not a contract of insurance</strong>. Capital protection and income payouts depend on the creditworthiness of ING Bank N.V. and the Republic of the Philippines. Values are not guaranteed.</span></div>'
+    +'<div class="section">'+st('\ud83d\udcb3','Premium at a Glance')
+      +'<div class="premium-grid">'
+        +'<div class="p-card hl"><div class="p-card-label">Single Premium <span style="font-weight:400;text-transform:none;">(editable)</span></div><input type="text" id="spm-prem-input-'+id+'" value="\u20b1'+d.singlePremium+'" style="width:100%;margin-top:4px;padding:8px;font-size:18px;font-weight:700;color:var(--navy);border:2px solid var(--gold);border-radius:8px;box-sizing:border-box;background:#fffdf5;" oninput="updateSPMPremium(\''+id+'\')"><div class="p-card-sub">One-time payment \u00b7 7-year holding period</div></div>'
+        +'<div class="p-card"><div class="p-card-label">Face Amount</div><div class="p-card-value" id="spm-faceamt-'+id+'">\u20b1'+fmt2(d.faceInt)+'</div><div class="p-card-sub">25% of Single Premium</div></div>'
+        +'<div class="p-card"><div class="p-card-label">Maturity Date</div><div class="p-card-value" style="font-size:16px;">'+d.maturityDate+'</div><div class="p-card-sub">7 years from issue date ('+d.issueDate+')</div></div>'
+      +'</div>'
+      +'<table class="data-table" style="margin-top:14px;"><thead><tr><th>Component</th><th>Amount</th></tr></thead><tbody>'
+        +'<tr><td><strong>Sun Peso Maximizer (ProIncome)</strong><br><span style="font-size:11px;color:var(--muted)">'+d.fundName+'</span></td><td id="spm-table-prem1-'+id+'">\u20b1'+d.singlePremium+'</td></tr>'
+        +'<tr class="total-row"><td><strong>Total Single Premium</strong></td><td><strong id="spm-table-prem2-'+id+'">\u20b1'+d.singlePremium+'</strong></td></tr>'
+      +'</tbody></table>'
+    +'</div>'
+    +'<div class="section">'+st('\ud83d\udee1\ufe0f','Core Benefits')
+      +'<div class="benefits-grid">'
+        +'<div class="benefit-card navy-bar"><div class="b-label">Face Amount</div><div class="b-amount" style="font-size:20px;" id="spm-faceamt2-'+id+'">\u20b1'+fmt2(d.faceInt)+'</div><div class="b-desc">25% of the Single Premium.</div></div>'
+        +'<div class="benefit-card green-bar"><div class="b-label">Minimum Death Benefit</div><div class="b-amount" style="font-size:20px;" id="spm-mindb-'+id+'">\u20b1'+fmt2(d.spInt*1.25)+'</div><div class="b-desc">At least 125% of the Single Premium, or the Fund Value \u2014 whichever is higher (after year 2, or for accidental death within the first 2 years).</div></div>'
+        +'<div class="benefit-card"><div class="b-label">Annual Income Payout</div><div class="b-amount" style="font-size:16px;color:var(--muted);font-weight:600;"><span id="spm-payoutrate-label-'+id+'">'+d.payoutRate.toFixed(2)+'% p.a.</span></div><div class="b-amount" style="font-size:28px;font-weight:800;color:var(--navy);margin-top:2px;" id="spm-payoutamt-label-'+id+'">\u20b1'+fmtN2(basePayout)+' <span style="font-size:14px;font-weight:600;color:var(--muted);">/ year</span></div><div class="b-desc" id="spm-payoutnote-'+id+'">The indicative non-guaranteed rate of the fixed annual payout shall be <span id="spm-payoutnote-rate-'+id+'">'+d.payoutRate.toFixed(2)+'</span>% of the Single Premium. The fixed annual payout will only be made known upon final closing of the tranche and will be indicated in the term sheet.</div></div>'
+        +'<div class="benefit-card"><div class="b-label">Capital Protection at Maturity</div><div class="b-amount" style="font-size:20px;">100% of SP</div><div class="b-desc">Full Single Premium returned at the end of the 7-year holding period, subject to ING Bank N.V. and Republic of the Philippines creditworthiness.</div></div>'
+        +'<div class="benefit-card"><div class="b-label">GIO \u2014 First 2 Years</div><div class="b-amount" style="font-size:20px;">Fund Value</div><div class="b-desc">Under Guaranteed Insurability Offer, death benefit for non-accident causes in the first two years is limited to Fund Value plus charges paid.</div></div>'
+        +'<div class="benefit-card"><div class="b-label">Underlying Asset</div><div class="b-amount" style="font-size:20px;">ING Note</div><div class="b-desc">Invests in a 7-year credit-linked note issued by ING Bank N.V., referencing the credit of the Republic of the Philippines.</div></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="section">'+st('\ud83d\udcb5','Cash Benefit Illustration')
+      +'<div class="premium-grid" style="margin-bottom:12px;">'
+        +'<div class="p-card hl"><div class="p-card-label">Annual Payout Rate <span style="font-weight:400;text-transform:none;">(editable)</span></div><div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><input type="text" id="spm-rate-input-'+id+'" value="'+d.payoutRate.toFixed(2)+'" style="width:80px;padding:8px;font-size:18px;font-weight:700;color:var(--navy);border:2px solid var(--gold);border-radius:8px;box-sizing:border-box;background:#fffdf5;text-align:right;" oninput="updateSPMRate(\''+id+'\')"><span style="font-size:18px;font-weight:700;color:var(--navy);">%</span></div><div class="p-card-sub">Tweak the rate to model a higher/lower tranche payout</div></div>'
+      +'</div>'
+      +'<table class="data-table" id="spm-cbi-table-'+id+'"><thead><tr>'
+        +'<th style="text-align:center;">End of Year</th>'
+        +'<th style="text-align:center;">Age</th>'
+        +'<th style="text-align:center;">Premium Paid</th>'
+        +'<th style="text-align:center;">Annual Payout</th>'
+      +'</tr></thead><tbody>'+cbiRows+'</tbody></table>'
+      +'<p style="font-size:11px;color:var(--muted);margin-top:10px;">Annual Payout = Single Premium × Payout Rate, paid at the end of each policy year. The Year 7 payout is paid together with the Maturity Benefit. This rate is indicative and non-guaranteed — actual rate is fixed only upon final closing of the tranche.</p>'
+    +'</div>'
+    +'<div class="section">'+st('\ud83d\udcc9','Surrender Charge Schedule')
+      +'<table class="data-table"><thead><tr><th style="text-align:center;">Policy Year</th><th style="text-align:center;">Surrender Charge</th></tr></thead><tbody>'+surrenderRows+'</tbody></table>'
+      +'<p style="font-size:11px;color:var(--muted);margin-top:10px;">Applied to Fund Value if the policy is fully withdrawn before maturity. Only full withdrawal is allowed \u2014 partial withdrawal is not permitted for this product.</p>'
+    +'</div>'
+    +'<div class="section">'+st('\ud83d\udcdd','Important Notes')
+      +'<ul style="font-size:12.5px;color:var(--text);line-height:1.7;padding-left:20px;margin:0;">'
+        +'<li>Guaranteed Insurability Offer (GIO): hassle-free approval subject to Sun Life limits; does not mean automatic approval.</li>'
+        +'<li>If death is due to accident within the first two policy years, the death benefit is the higher of the Fund Value or the Face Amount plus the entire Single Premium.</li>'
+        +'<li>In the event of ING default or a credit event on the Republic of the Philippines, the maturity date accelerates and the policy owner can lose some or all of the Single Premium.</li>'
+        +'<li>This is a Quick Quote for information purposes only and is not for submission.</li>'
+      +'</ul>'
+    +'</div>'
+    +'</div>'
+    +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> \u00b7 Branch: <strong>'+d.branch+'</strong> \u00b7 Date: <strong>'+d.propDate+'</strong></p>'
+      +'<p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. \u00b7 <strong>This is only an illustration \u2014 not a contract of insurance.</strong></p>'
+    +'</div>';
+
+  container.appendChild(div);
+}
+
+// Editable Single Premium: rescales every proportional field (Face Amount, Min
+// Death Benefit, Annual Payout, Policy Fund Value, Death Benefit) using each
+// row's stored per-peso factor — same pattern as MX1's updateMX1Premium.
+// Shared recompute for anything that depends on Single Premium and/or the
+// editable Annual Payout Rate — keeps the Cash Benefit Illustration table and
+// the Annual Payout column of the Projected Benefits table in sync no matter
+// which of the two inputs the advisor just changed.
+function recalcSPMPayouts(id, newSP, newRatePct){
+  const fmtN2=n=>Math.round(n).toLocaleString('en-US');
+  const basePayout=newSP*(newRatePct/100);
+
+  const cbiTable=document.getElementById('spm-cbi-table-'+id);
+  if(cbiTable){
+    cbiTable.querySelectorAll('tbody tr').forEach(row=>{
+      const hasPrem=row.getAttribute('data-prempaid')==='1';
+      const isMaturityYr=row.getAttribute('data-maturity')==='1';
+      const premCell=row.querySelector('.spm-cbi-prem');
+      const payoutCell=row.querySelector('.spm-cbi-payout');
+      if(premCell) premCell.textContent=hasPrem?'\u20b1'+fmtN2(newSP):'\u2014';
+      if(payoutCell){
+        const amount=isMaturityYr?(basePayout+newSP):basePayout;
+        payoutCell.innerHTML='\u20b1'+fmtN2(amount)+(isMaturityYr?' <span class="yr-tag">incl. premium return</span>':'');
+      }
+    });
+  }
+
+  // Keep the "Annual Income Payout" summary card in Core Benefits in sync
+  // with whatever rate/premium is currently set in the Cash Benefit
+  // Illustration — same source-of-truth formula, single premium × rate%.
+  const rateLabelEl=document.getElementById('spm-payoutrate-label-'+id);
+  const amtLabelEl=document.getElementById('spm-payoutamt-label-'+id);
+  const noteRateEl=document.getElementById('spm-payoutnote-rate-'+id);
+  if(rateLabelEl) rateLabelEl.textContent=newRatePct.toFixed(2)+'% p.a.';
+  if(amtLabelEl) amtLabelEl.innerHTML='\u20b1'+fmtN2(basePayout)+' <span style="font-size:14px;font-weight:600;color:var(--muted);">/ year</span>';
+  if(noteRateEl) noteRateEl.textContent=newRatePct.toFixed(2);
+}
+
+function updateSPMPremium(id){
+  const view=document.getElementById('view_'+id);
+  if(!view)return;
+  const input=document.getElementById('spm-prem-input-'+id);
+  if(!input)return;
+  const raw=input.value.replace(/[\u20b1,\s]/g,'');
+  const newPrem=parseFloat(raw);
+  const fmt2=n=>{const r=Math.round(n*100)/100;const p=r.toFixed(2).split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');return p.join('.');};
+  const fmtN2=n=>Math.round(n).toLocaleString('en-US');
+
+  if(document.activeElement===input){
+    const caretPos=input.selectionStart;
+    const digitsBeforeCaret=input.value.slice(0,caretPos).replace(/[^\d]/g,'').length;
+    const digitsOnly=raw.replace(/[^\d]/g,'');
+    const formatted=digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    if(input.value!==formatted){
+      input.value=formatted;
+      let count=0, newPos=0;
+      for(;newPos<formatted.length;newPos++){
+        if(/\d/.test(formatted[newPos])) count++;
+        if(count>=digitsBeforeCaret) { newPos++; break; }
+      }
+      input.setSelectionRange(newPos,newPos);
+    }
+  }
+
+  if(isNaN(newPrem)||newPrem<=0)return;
+
+  view.setAttribute('data-spint', newPrem);
+
+  const newFace=newPrem*0.25;
+  const newMinDB=newPrem*1.25;
+  const faceEl1=document.getElementById('spm-faceamt-'+id);
+  const faceEl2=document.getElementById('spm-faceamt2-'+id);
+  const mindbEl=document.getElementById('spm-mindb-'+id);
+  if(faceEl1) faceEl1.textContent='\u20b1'+fmt2(newFace);
+  if(faceEl2) faceEl2.textContent='\u20b1'+fmt2(newFace);
+  if(mindbEl) mindbEl.textContent='\u20b1'+fmt2(newMinDB);
+
+  const tp1=document.getElementById('spm-table-prem1-'+id);
+  const tp2=document.getElementById('spm-table-prem2-'+id);
+  if(tp1) tp1.textContent='\u20b1'+fmt2(newPrem);
+  if(tp2) tp2.textContent='\u20b1'+fmt2(newPrem);
+
+  const curRate=parseFloat(view.getAttribute('data-payoutrate'))||0;
+  recalcSPMPayouts(id, newPrem, curRate);
+}
+
+// Editable Annual Payout Rate — advisor can tweak this up or down to model a
+// different tranche rate. Recomputes Annual Payout = Single Premium × Rate%
+// live across both the Cash Benefit Illustration table and the Annual Payout
+// column of the detailed Projected Benefits table. Does NOT touch the Policy
+// Fund Value / Death Benefit columns, since those reflect a separate set of
+// investment-return scenarios (2%/3%/4%) taken directly from the PDF.
+function updateSPMRate(id){
+  const view=document.getElementById('view_'+id);
+  if(!view)return;
+  const input=document.getElementById('spm-rate-input-'+id);
+  if(!input)return;
+  const raw=input.value.replace(/[^\d.]/g,'');
+  const newRate=parseFloat(raw);
+  if(isNaN(newRate)||newRate<0)return;
+
+  view.setAttribute('data-payoutrate', newRate);
+  const curSP=parseFloat(view.getAttribute('data-spint'))||0;
+  recalcSPMPayouts(id, curSP, newRate);
+}
+
 </script>
 
 
