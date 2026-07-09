@@ -1520,7 +1520,13 @@ async function saveJPG(id,btn,page,product){
     const hidden=[];
     sections.forEach(sec=>{const title=sec.querySelector('.section-title');const text=title?title.textContent.toLowerCase():'';let sId=sec.classList.contains('notice')?'notice':'';if(text.includes('guaranteed minimum death benefit'))sId='dbschedule';else if(text.includes('premium bonus'))sId='bonus';else if(text.includes('premium'))sId='premium';else if(text.includes('core'))sId='core';else if(text.includes('critical'))sId='ci';else if(text.includes('hospital'))sId='hospital';else if(text.includes('dividend'))sId='dividends';else if(text.includes('retirement'))sId='retirement';else if(text.includes('centenarian'))sId='centenarian';else if(text.includes('fund allocation'))sId='fundalloc';else if(text.includes('illustration'))sId='illustration';else if(text.includes('notes')||text.includes('important'))sId='notes';if(!sectionsToShow.includes(sId)){sec.style.display='none';hidden.push(sec);}});
     if(docFooter)docFooter.style.display=sectionsToShow.includes('footer')?'':'none';
-    let canvas;try{canvas=await html2canvas(view,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#FAF7F2',scrollX:0,scrollY:0,windowWidth:view.scrollWidth,windowHeight:view.scrollHeight,logging:false});}catch(e){console.error(e);}
+    // Force a minimum capture width regardless of the device's actual viewport.
+    // An overflow-x:auto table wrapper doesn't expand its ancestor's scrollWidth,
+    // so on a phone view.scrollWidth is just the narrow screen width — capturing
+    // at that width clips any illustration table wider than the phone screen
+    // (up to 960px across the different products). Force a safe floor instead.
+    const captureWidth=Math.max(view.scrollWidth, 960);
+    let canvas;try{canvas=await html2canvas(view,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#FAF7F2',scrollX:0,scrollY:0,windowWidth:captureWidth,windowHeight:view.scrollHeight,logging:false});}catch(e){console.error(e);}
     hidden.forEach(s=>s.style.display='');if(docFooter)docFooter.style.display='';mainEl.style.overflow=origOF;mainEl.style.height=origH;if(btnStrip)btnStrip.classList.remove('capture-hide');
     if(canvas){const link=document.createElement('a');link.download=filename;link.href=canvas.toDataURL('image/jpeg',0.96);link.click();}
   }
@@ -3746,16 +3752,16 @@ function renderSPMView(id,d,pdfUrl){
       +'<div class="premium-grid" style="margin-bottom:12px;">'
         +'<div class="p-card hl"><div class="p-card-label">Annual Payout Rate <span style="font-weight:400;text-transform:none;">(editable)</span></div><div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><input type="text" id="spm-rate-input-'+id+'" value="'+d.payoutRate.toFixed(2)+'" style="width:80px;padding:8px;font-size:18px;font-weight:700;color:var(--navy);border:2px solid var(--gold);border-radius:8px;box-sizing:border-box;background:#fffdf5;text-align:right;" oninput="updateSPMRate(\''+id+'\')"><span style="font-size:18px;font-weight:700;color:var(--navy);">%</span></div><div class="p-card-sub">Tweak the rate to model a higher/lower tranche payout</div></div>'
       +'</div>'
-      +'<table class="data-table" id="spm-cbi-table-'+id+'"><thead><tr>'
+      +'<div class="illus-table-wrap"><table class="data-table" id="spm-cbi-table-'+id+'" style="min-width:520px;"><thead><tr>'
         +'<th style="text-align:center;">End of Year</th>'
         +'<th style="text-align:center;">Age</th>'
         +'<th style="text-align:center;">Premium Paid</th>'
         +'<th style="text-align:center;">Annual Payout</th>'
-      +'</tr></thead><tbody>'+cbiRows+'</tbody></table>'
+      +'</tr></thead><tbody>'+cbiRows+'</tbody></table></div>'
       +'<p style="font-size:11px;color:var(--muted);margin-top:10px;">Annual Payout = Single Premium × Payout Rate, paid at the end of each policy year. The Year 7 payout is paid together with the Maturity Benefit. This rate is indicative and non-guaranteed — actual rate is fixed only upon final closing of the tranche.</p>'
     +'</div>'
     +'<div class="section">'+st('\ud83d\udcc9','Surrender Charge Schedule')
-      +'<table class="data-table"><thead><tr><th style="text-align:center;">Policy Year</th><th style="text-align:center;">Surrender Charge</th></tr></thead><tbody>'+surrenderRows+'</tbody></table>'
+      +'<div class="illus-table-wrap"><table class="data-table"><thead><tr><th style="text-align:center;">Policy Year</th><th style="text-align:center;">Surrender Charge</th></tr></thead><tbody>'+surrenderRows+'</tbody></table></div>'
       +'<p style="font-size:11px;color:var(--muted);margin-top:10px;">Applied to Fund Value if the policy is fully withdrawn before maturity. Only full withdrawal is allowed \u2014 partial withdrawal is not permitted for this product.</p>'
     +'</div>'
     +'<div class="section">'+st('\ud83d\udcdd','Important Notes')
