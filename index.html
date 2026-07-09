@@ -545,7 +545,7 @@ button{min-height:36px;}
   </div>
   <div class="error-state" id="errorState">
     <div class="error-icon">⚠️</div>
-    <div class="error-title">Could not process PDF</div>
+    <div class="error-title" id="errorTitle">Could not process PDF</div>
     <div class="error-desc" id="errorDesc">Please ensure it is a valid Sun Life proposal PDF.</div>
   </div>
   <div id="proposalsContainer"></div>
@@ -831,6 +831,23 @@ let activeId=null,currentProduct='slsi';
 // falling back, unlike `parseInt(x)||fallback` which incorrectly discards 0 (falsy).
 function safeAge(v,fallback){const n=parseInt(v);return isNaN(n)?fallback:n;}
 
+// Wrong-tab upload guard — each product's proposal PDF always carries its own
+// distinctive title text on page 1. Before parsing anything, check that text
+// against the currently selected tab so an EL5 PDF dropped on the SLSI tab
+// (etc.) gets a clear error instead of silently producing garbage data.
+const PRODUCT_LABELS={slsi:'Sun Life Secure Income (SLSI)',sfw:'SUN Fit and Well Advantage (SFW)',el5:'EasyLink Protect',mx1:'MaxiLink One',spm:'Sun Peso Maximizer (ProIncome)'};
+const PRODUCT_MARKERS=[
+  {key:'spm', rx:/Sun\s*Peso\s*Maximizer/i},      // check most specific/distinctive titles first
+  {key:'el5', rx:/EasyLink\s*Protect/i},
+  {key:'mx1', rx:/Max[iI]\s*Link\s*One|Sun\s*MaxiLink\s*One/i},
+  {key:'sfw', rx:/SUN\s*Fit\s*and\s*Well\s*Advantage/i},
+  {key:'slsi',rx:/Sun\s*Life\s*Secure\s*Income/i}
+];
+function detectSPProduct(text){
+  for(const m of PRODUCT_MARKERS){ if(m.rx.test(text)) return m.key; }
+  return null;
+}
+
 // PRODUCT SWITCHER
 function switchProduct(prod){
   currentProduct=prod;
@@ -872,6 +889,17 @@ async function processOnePDF(file){
     let fullText='';
     for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();fullText+=c.items.map(x=>x.str).join(' ')+'\n';}
     setProgress(60);updateLoadingStep('Parsing proposal data…');
+
+    // Stop here if this PDF clearly belongs to a different product than the
+    // currently selected tab — prevents an SLSI/SFW/EL5/MX1/SPM PDF from
+    // being silently mis-parsed under the wrong tab.
+    const detectedProduct=detectSPProduct(fullText);
+    if(detectedProduct && detectedProduct!==currentProduct){
+      hideLoading();
+      showError('This PDF looks like a "'+PRODUCT_LABELS[detectedProduct]+'" proposal, but the "'+PRODUCT_LABELS[currentProduct]+'" tab is currently selected. Switch to the "'+PRODUCT_LABELS[detectedProduct]+'" tab and re-upload, or upload the correct file here.', 'Wrong Product Tab');
+      return;
+    }
+
     let data,product;
     if(currentProduct==='slsi'){data=parseSLSI(fullText,file.name);product='slsi';}
     else if(currentProduct==='el5'){data=parseEL5(fullText,file.name);product='el5';}
@@ -1465,7 +1493,7 @@ function deleteProposal(id,e){
 }
 function showLoading(step){document.getElementById('emptyState').style.display='none';document.getElementById('errorState').classList.remove('show');document.querySelectorAll('.proposal-view').forEach(v=>v.classList.remove('active'));document.getElementById('loadingState').classList.add('show');document.getElementById('loadingStep').textContent=step;document.getElementById('processingBar').classList.add('show');}
 function hideLoading(){document.getElementById('loadingState').classList.remove('show');document.getElementById('processingBar').classList.remove('show');setProgress(0);}
-function showError(msg){document.getElementById('emptyState').style.display='none';document.getElementById('loadingState').classList.remove('show');document.getElementById('errorDesc').textContent=msg;document.getElementById('errorState').classList.add('show');}
+function showError(msg,title){document.getElementById('emptyState').style.display='none';document.getElementById('loadingState').classList.remove('show');document.getElementById('errorTitle').textContent=title||'Could not process PDF';document.getElementById('errorDesc').textContent=msg;document.getElementById('errorState').classList.add('show');}
 function setProgress(pct){document.getElementById('progressFill').style.width=pct+'%';}
 function updateLoadingStep(step){document.getElementById('loadingStep').textContent=step;document.getElementById('processingLabel').innerHTML='<span class="spinner"></span><span>'+step+'</span>';}
 
