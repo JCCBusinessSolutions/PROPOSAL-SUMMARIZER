@@ -453,7 +453,7 @@ button{min-height:36px;}
       <div class="gate-label">Enter your registered email to continue</div>
       <input type="email" id="gateEmail" class="gate-input" placeholder="your@email.com" autocomplete="email" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="email"/>
       <div class="gate-error" id="gateError">⚠ This email is not on the access list. Please contact JAYMAR CASTRO, CPA.</div>
-      <button id="gateBtn" class="gate-btn" onclick="checkGateEmail()">Send Access Code</button>
+      <button id="gateBtn" class="gate-btn" onclick="checkGateEmail()">Continue</button>
     </div>
     <div class="gate-step hidden" id="gateStep2">
       <div class="gate-label">Enter the 6-digit code we sent to</div>
@@ -568,7 +568,66 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
   const _store={};
   const _get=k=>{try{return sessionStorage.getItem(k);}catch(e){try{return localStorage.getItem(k);}catch(e2){return _store[k]||null;}}};
   const _set=(k,v)=>{try{sessionStorage.setItem(k,v);}catch(e){try{localStorage.setItem(k,v);}catch(e2){_store[k]=v;}}};
-  if(_get(SK)==='1'){document.getElementById('emailGate').style.display='none';}
+  const SK_SESSION_ID='gge_session_id';
+  const SESSION_CHECK_INTERVAL=45000; // 45s
+  let _sessionWatchTimer=null;
+
+  function _genSessionId(){
+    try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+    return 'sid_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  }
+
+  // Tells the backend "this device is now the active session for this email" —
+  // overwrites whatever session ID (if any) was previously registered, so an
+  // older device's next poll will see a mismatch and get logged out.
+  function _registerSession(email){
+    const sid=_genSessionId();
+    _set(SK_SESSION_ID, sid);
+    try{
+      fetch(SCRIPT_URL+'?action=registerSession&email='+encodeURIComponent(email)+'&sid='+encodeURIComponent(sid),{method:'GET',redirect:'follow',cache:'no-store'}).catch(function(){});
+    }catch(e){}
+    _startSessionWatch(email);
+  }
+
+  // Polls the backend periodically; if the backend's currently-registered
+  // session ID for this email no longer matches ours, another device has
+  // logged in with the same email — log this one out immediately.
+  // Fails safe: if the backend doesn't return a sid (e.g. the Apps Script
+  // hasn't been updated with the registerSession/checkSession actions yet,
+  // or the request fails), nothing happens — no false logouts.
+  function _startSessionWatch(email){
+    if(_sessionWatchTimer) clearInterval(_sessionWatchTimer);
+    _sessionWatchTimer=setInterval(function(){
+      const mySid=_get(SK_SESSION_ID);
+      if(!mySid) return;
+      fetch(SCRIPT_URL+'?action=checkSession&email='+encodeURIComponent(email),{method:'GET',redirect:'follow',cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(data){
+          if(data && data.sid && data.sid!==mySid){
+            _forceLogoutOtherDevice();
+          }
+        })
+        .catch(function(){});
+    }, SESSION_CHECK_INTERVAL);
+  }
+
+  function _forceLogoutOtherDevice(){
+    if(_sessionWatchTimer){clearInterval(_sessionWatchTimer);_sessionWatchTimer=null;}
+    try{sessionStorage.removeItem(SK);}catch(e){}
+    try{localStorage.removeItem(SK);}catch(e){}
+    try{sessionStorage.removeItem('gge_auth_email');}catch(e){}
+    try{localStorage.removeItem('gge_auth_email');}catch(e){}
+    try{sessionStorage.removeItem(SK_SESSION_ID);}catch(e){}
+    try{localStorage.removeItem(SK_SESSION_ID);}catch(e){}
+    alert('You have been logged out because your account was signed in on another device.');
+    location.reload();
+  }
+
+  if(_get(SK)==='1'){
+    document.getElementById('emailGate').style.display='none';
+    const _existingEmail=_get('gge_auth_email');
+    if(_existingEmail) _startSessionWatch(_existingEmail);
+  }
   let _cachedEmails=null;
   let _cachedBuyerEmails=null;
   function _loadEmails(){
@@ -716,39 +775,21 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
       const onAllowed=allowedSet.has(email);
       const onBuyers=buyerSet.has(email);
       if(!onAllowed&&!onBuyers){
-        if(btn){btn.textContent='Send Access Code';btn.disabled=false;}
+        if(btn){btn.textContent='Continue';btn.disabled=false;}
         inp.classList.add('error');
         err.textContent='⚠ This email is not on the access list. Contact JAYMAR CASTRO, CPA.';
         err.classList.add('show');inp.focus();
         return;
       }
-      if(onAllowed){
-        // EMAIL ACCESS list — no OTP required, grant immediately
-        if(btn){btn.textContent='Send Access Code';btn.disabled=false;}
-        const g=document.getElementById('emailGate');
-        g.style.transition='opacity 0.4s ease';g.style.opacity='0';
-        setTimeout(function(){g.style.display='none';},420);
-        _set(SK,'1');
-        _set('gge_auth_email',email);
-        return;
-      }
-      // BUYERS list — OTP required
-      if(btn){btn.textContent='Sending code…';}
-      _issueAndSendOtp(email).then(function(){
-        if(btn){btn.textContent='Send Access Code';btn.disabled=false;}
-        const sentTo=document.getElementById('gateSentTo');
-        if(sentTo)sentTo.innerHTML='<b>'+_maskEmail(email)+'</b>';
-        _clearOtpInputs();_setOtpError('');
-        _wireOtpInputs();
-        _showStep(2);
-        _startResendCooldown();
-        const first=document.getElementById('otp0');if(first)first.focus();
-      }).catch(function(){
-        if(btn){btn.textContent='Send Access Code';btn.disabled=false;}
-        inp.classList.add('error');
-        err.textContent='⚠ Could not send the code. Check your connection and try again.';
-        err.classList.add('show');
-      });
+      // Any listed email (EMAIL ACCESS or BUYERS) — grant immediately, no OTP step.
+      if(btn){btn.textContent='Continue';btn.disabled=false;}
+      const g=document.getElementById('emailGate');
+      g.style.transition='opacity 0.4s ease';g.style.opacity='0';
+      setTimeout(function(){g.style.display='none';},420);
+      _set(SK,'1');
+      _set('gge_auth_email',email);
+      _registerSession(email);
+      return;
     });
   };
 
@@ -770,6 +811,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
     setTimeout(function(){g.style.display='none';},420);
     _set(SK,'1');
     _set('gge_auth_email',_pendingEmail);
+    _registerSession(_pendingEmail);
   };
 
   window.resendGateOtp=function(){
