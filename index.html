@@ -1464,28 +1464,38 @@ function renderSFWView(id,d,pdfUrl){
     '<div class="section" style="background:linear-gradient(135deg,var(--navy-light) 0%,#fff 100%);border-radius:12px;padding:20px 24px;border:1px solid var(--border);">'+st('📐','Premium Variant Summary — FWA Comparison')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">All <strong>SUN Fit and Well Advantage</strong> variants share <strong>identical coverage benefits</strong>. The difference lies only in the premium payment period and the resulting annual premium cost. Longer payment periods mean lower annual premiums.</p>'+
     '<table class="data-table" style="min-width:460px;"><thead><tr><th>Variant</th><th>Pay Period</th><th>Annual Premium*</th><th>Factor vs FWA 10</th><th>Savings/yr vs FWA 10</th></tr></thead><tbody>'+
-    '<tr'+(payYears===10?' style="background:var(--amber-light);"':'')+'>'+
-      '<td><strong>SUN Fit and Well Advantage 10</strong>'+(payYears===10?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':' <span class="rider-tag">Base</span>')+'</td>'+
-      '<td style="text-align:center;">10 Years</td>'+
-      '<td style="text-align:right;font-weight:600;">₱33,310</td>'+
-      '<td style="text-align:center;font-weight:700;color:var(--navy);">1.0000</td>'+
-      '<td style="text-align:right;color:var(--muted);">—</td>'+
-    '</tr>'+
-    '<tr'+(payYears===15?' style="background:var(--amber-light);"':'')+'>'+
-      '<td><strong>SUN Fit and Well Advantage 15</strong>'+(payYears===15?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':'')+'</td>'+
-      '<td style="text-align:center;">15 Years</td>'+
-      '<td style="text-align:right;font-weight:600;">₱23,965</td>'+
-      '<td style="text-align:center;font-weight:700;color:var(--green);">0.7194</td>'+
-      '<td style="text-align:right;color:var(--green);font-weight:600;">–₱9,345/yr</td>'+
-    '</tr>'+
-    '<tr'+(payYears===20?' style="background:var(--amber-light);"':'')+'>'+
-      '<td><strong>SUN Fit and Well Advantage 20</strong>'+(payYears===20?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':'')+'</td>'+
-      '<td style="text-align:center;">20 Years</td>'+
-      '<td style="text-align:right;font-weight:600;">₱19,440</td>'+
-      '<td style="text-align:center;font-weight:700;color:var(--green);">0.5836</td>'+
-      '<td style="text-align:right;color:var(--green);font-weight:600;">–₱13,870/yr</td>'+
-    '</tr>'+
-    '</tbody><tfoot><tr><td colspan="5" style="font-size:11px;color:var(--muted);padding-top:8px;">*Based on 36M Non-Smoker, ₱500,000 Face Amount, with ADB + TDB riders.</td></tr></tfoot></table>'+
+    (function(){
+      // Dynamic: scales the actual uploaded proposal's real total premium
+      // (computedTotal) using the same ratio logic as the interactive variant
+      // switcher above — never hardcoded reference numbers.
+      const base10  = Math.round(SFW_VARIANT_REFPREM[10] * (computedTotal / SFW_VARIANT_REFPREM[payYears]));
+      const amt15   = Math.round(SFW_VARIANT_REFPREM[15] * (computedTotal / SFW_VARIANT_REFPREM[payYears]));
+      const amt20   = Math.round(SFW_VARIANT_REFPREM[20] * (computedTotal / SFW_VARIANT_REFPREM[payYears]));
+      let rows='';
+      rows+='<tr'+(payYears===10?' style="background:var(--amber-light);"':'')+'>'+
+        '<td><strong>SUN Fit and Well Advantage 10</strong>'+(payYears===10?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':' <span class="rider-tag">Base</span>')+'</td>'+
+        '<td style="text-align:center;">10 Years</td>'+
+        '<td style="text-align:right;font-weight:600;">₱'+fmtN(base10)+'</td>'+
+        '<td style="text-align:center;font-weight:700;color:var(--navy);">1.0000</td>'+
+        '<td style="text-align:right;color:var(--muted);">—</td>'+
+      '</tr>';
+      rows+='<tr'+(payYears===15?' style="background:var(--amber-light);"':'')+'>'+
+        '<td><strong>SUN Fit and Well Advantage 15</strong>'+(payYears===15?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':'')+'</td>'+
+        '<td style="text-align:center;">15 Years</td>'+
+        '<td style="text-align:right;font-weight:600;">₱'+fmtN(amt15)+'</td>'+
+        '<td style="text-align:center;font-weight:700;color:var(--green);">'+SFW_FACTORS[15].toFixed(4)+'</td>'+
+        '<td style="text-align:right;color:var(--green);font-weight:600;">–₱'+fmtN(base10-amt15)+'/yr</td>'+
+      '</tr>';
+      rows+='<tr'+(payYears===20?' style="background:var(--amber-light);"':'')+'>'+
+        '<td><strong>SUN Fit and Well Advantage 20</strong>'+(payYears===20?' <span class="rider-tag" style="background:#0D2340;color:#fff;">YOUR PLAN</span>':'')+'</td>'+
+        '<td style="text-align:center;">20 Years</td>'+
+        '<td style="text-align:right;font-weight:600;">₱'+fmtN(amt20)+'</td>'+
+        '<td style="text-align:center;font-weight:700;color:var(--green);">'+SFW_FACTORS[20].toFixed(4)+'</td>'+
+        '<td style="text-align:right;color:var(--green);font-weight:600;">–₱'+fmtN(base10-amt20)+'/yr</td>'+
+      '</tr>';
+      return rows;
+    })()+
+    '</tbody><tfoot><tr><td colspan="5" style="font-size:11px;color:var(--muted);padding-top:8px;">*Scaled from your uploaded proposal — '+d.age+' '+d.smoker+', ₱'+fD+' Face Amount, with ADB + TDB riders. Estimated for other pay periods using Sun Life\'s published FWA premium ratios; actual quotes may vary slightly by exact age/class.</td></tr></tfoot></table>'+
     '</div>'+
     '<div class="section">'+st('🌅','Retirement Cash Benefits — Ages 65 to 72')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Guaranteed ₱'+fmt(faceInt*0.05)+'/year for <strong>8 consecutive years</strong>. Total: ₱'+fmt(faceInt*0.4)+'. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
