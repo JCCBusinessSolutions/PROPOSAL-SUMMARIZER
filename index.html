@@ -1272,7 +1272,6 @@ function renderSLSIView(id,d,pdfUrl){
   div.className='proposal-view';div.id='view_'+id;
   const slsiYears = d.slsiYears || 10;
   const slsiVariantLabel = d.slsiVariantLabel || 'Sun Life Secure Income 10';
-  const slsiVariantTag   = d.slsiVariantTag   || '💰 SLSI 10';
   const fD=d.faceInt.toLocaleString('en-US')+'.00';
   const liD=(d.faceInt*2).toLocaleString('en-US')+'.00';
   const gcbD=fmtN(d.gcb);
@@ -1305,7 +1304,7 @@ function renderSLSIView(id,d,pdfUrl){
     +(d.hasWPD?_sp(d.wpdPrem):0);
   const slsiTotal=fmtN(slsiComputedTotal);
   div.innerHTML=
-    '<div class="doc-header"><div class="doc-header-inner"><div><div class="doc-title">SUN Life Secure<br>'+slsiVariantLabel.replace('Sun Life Secure ','')+'</div><div class="doc-subtitle">Life Insurance Policy Summary</div><div class="product-type-tag">💼 SLSI 10</div></div><div><div class="doc-insured-name">'+d.insuredName+'</div><div class="doc-insured-meta">Age: '+d.age+'<br>Owner: '+d.owner+(d.ownerAge!=='—'?' (Age '+d.ownerAge+')':'')+'<br>Date: '+d.propDate+'</div></div></div><div class="badge-strip"><span>10-Year Pay</span><span>Coverage to Age 100</span><span>Face Amount: ₱'+fD+'</span><span>Non-Smoker</span></div></div>'+
+    '<div class="doc-header"><div class="doc-header-inner"><div><div class="doc-title">SUN Life Secure<br>'+slsiVariantLabel.replace('Sun Life Secure ','')+'</div><div class="doc-subtitle">Life Insurance Policy Summary</div><div class="product-type-tag">💼 '+SLSI_VARIANT_NAMES[slsiYears]+'</div></div><div><div class="doc-insured-name">'+d.insuredName+'</div><div class="doc-insured-meta">Age: '+d.age+'<br>Owner: '+d.owner+(d.ownerAge!=='—'?' (Age '+d.ownerAge+')':'')+'<br>Date: '+d.propDate+'</div></div></div><div class="badge-strip"><span>'+slsiYears+'-Year Pay</span><span>Coverage to Age 100</span><span>Face Amount: ₱'+fD+'</span><span>Non-Smoker</span></div></div>'+
     '<div class="save-btn-strip" style="display:flex;justify-content:flex-end;align-items:center;padding:10px 40px;background:var(--navy-light);border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;">'+
     '<span style="font-size:11px;color:var(--muted);font-weight:500;margin-right:auto;">📸 Export as HD JPG</span>'+
     '<button class="view-pdf-btn" data-pid='+id+' style="display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--navy);border:none;cursor:pointer;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:0.04em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> VIEW PDF</button>'+
@@ -1373,7 +1372,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="section">'+st('🎖️','Centenarian Bonus Schedule')+'<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">25% of Face Amount (₱'+c25+') at each anniversary. Total = ₱'+fmtN(d.faceInt)+'.</p>'+
     '<div class="cent-grid"><div class="cent-box"><div class="cent-age">80</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">85</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">90</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">95</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div></div></div>'+
     '<div class="section">'+st('📊','Cash Benefit Illustration — Key Years (4.50%)')+
-    '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;"><span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
+    '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;"><span id="slsi-illus-src-'+id+'" data-uploaded="'+slsiYears+'" style="display:inline-block;background:var(--tag-bg);color:var(--green);font-weight:700;padding:3px 9px;border-radius:4px;margin-right:10px;">📄 Exact figures from uploaded '+SLSI_VARIANT_NAMES[slsiYears]+' proposal</span><span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
     '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody id="slsi-illus-tbody-'+id+'">'+illRows+'</tbody></table></div></div>'+buildSLSINotesHTML(id, d.faceInt, d.gcb)+'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div></div>'+
     '</div>';
   container.appendChild(div);
@@ -1783,8 +1782,8 @@ function renderSidebarItem(id,data,product){
   const list=document.getElementById('proposalList');
   const item=document.createElement('div');item.className='proposal-item';item.id='sidebar_'+id;
   const name=product==='slsi'?data.insuredName:data.name;
-  const meta=product==='slsi'?('Age '+(safeAge(data.ageNum!==undefined?data.ageNum:data.age,'?'))+' · SLSI 10'):product==='el5'?('Age '+(safeAge(data.age,'?'))+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):product==='spm'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):('Age '+(safeAge(data.age,'?'))+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
-  const badge=product==='slsi'?'SLSI':product==='el5'?('EL'+data.payPeriod):product==='mx1'?'MX1':product==='spm'?'SPM':'SFW';
+  const meta=product==='slsi'?('Age '+(safeAge(data.ageNum!==undefined?data.ageNum:data.age,'?'))+' · '+(data.slsiVariantShort||'SLSI 10')):product==='el5'?('Age '+(safeAge(data.age,'?'))+' · EasyLink '+data.payPeriod):product==='mx1'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):product==='spm'?('Age '+(safeAge(data.age,'?'))+' · Single Premium ₱'+data.singlePremium):('Age '+(safeAge(data.age,'?'))+' · '+(data.variantShort||'SFW Adv 10')+' · Factor: '+(SFW_FACTORS[data.payYears||10]||1).toFixed(4));
+  const badge=product==='slsi'?(data.slsiVariantShort||'SLSI'):product==='el5'?('EL'+data.payPeriod):product==='mx1'?'MX1':product==='spm'?'SPM':'SFW';
   item.innerHTML='<div class="p-item-icon">📋</div><div class="p-item-info"><div class="p-item-name">'+name+' <span class="p-item-badge">'+badge+'</span></div><div class="p-item-meta">'+meta+'</div></div><button class="p-item-delete" onclick="deleteProposal(\''+id+'\',event)" title="Remove">✕</button>';
   item.onclick=()=>setActiveProposal(id);
   list.appendChild(item);
@@ -2363,6 +2362,22 @@ document.addEventListener('click', function(e) {
     const isUploadedVariant = targetVar === reg.uploadedVar;
     const rowsForVariant = (isUploadedVariant && proposal2) ? (proposal2.data.rows || {}) : {};
     illusTbody.innerHTML = buildSLSIIllusRows(targetVar, rowsForVariant, ageN, fi, gcb, isUploadedVariant);
+
+    // Make it unmistakable whether these figures came straight from the
+    // uploaded PDF or are estimated for a variant the person switched to.
+    const srcBadge = document.getElementById('slsi-illus-src-'+vid);
+    if (srcBadge) {
+      if (isUploadedVariant) {
+        srcBadge.innerHTML = '📄 Exact figures from uploaded '+SLSI_VARIANT_NAMES[targetVar]+' proposal';
+        srcBadge.style.background = 'var(--tag-bg)';
+        srcBadge.style.color = 'var(--green)';
+      } else {
+        srcBadge.innerHTML = '📐 Estimated for '+SLSI_VARIANT_NAMES[targetVar]+
+          ' · uploaded proposal was '+SLSI_VARIANT_NAMES[reg.uploadedVar];
+        srcBadge.style.background = 'var(--amber-light)';
+        srcBadge.style.color = 'var(--amber)';
+      }
+    }
   }
 });
 
