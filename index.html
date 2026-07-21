@@ -1469,7 +1469,7 @@ function parseSFW(text,filename){
     else{const mc2=text.match(/Critical Illness Benefit[^\n]*?Ps\s*([\d,]+\.\d{2})/i);if(mc2)cibPrem=mc2[1];}
   }
   const hibPrem='0';
-  const tpMatch=text.match(/Total Annual Premium\s*Ps\s*([\d,]+\.\d{2})/i);
+  const tpMatch=text.match(/Total (?:Initial )?Annual Premium\s*Ps\s*([\d,]+\.\d{2})/i);
   const totalPremium=tpMatch?tpMatch[1]:(psAmts[psAmts.length-1]||'0');
 
   // --- Option label ---
@@ -3314,7 +3314,7 @@ function parseMX1(text, filename){
   const age=get(/Age Last Birthday\s*:\s*(\d+\s*\([^)]+\))/i);
   const ageNum=(function(){const n=parseInt(age);return isNaN(n)?30:n;})();
   const smoker=/Non.Smoker/i.test(text)?'Non-Smoker':'Smoker';
-  const singlePremium=get(/Total Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||get(/Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||'250,000.00';
+  const singlePremium=get(/Total (?:Initial )?Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||get(/Single Premium\s*Ps\s*([\d,]+\.\d{2})/i)||'250,000.00';
   const spInt=parseInt(singlePremium.replace(/,/g,'').replace(/\..*/,''))||250000;
   const faceAmt=get(/Face Amount\s*[:\n]?\s*Ps\s*([\d,]+\.\d{2})/i)||(Math.round(spInt*0.25)).toLocaleString('en-US')+'.00';
   const faceInt=parseInt(faceAmt.replace(/,/g,'').replace(/\..*/,''))||Math.round(spInt*0.25);
