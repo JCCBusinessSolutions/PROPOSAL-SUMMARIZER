@@ -2981,7 +2981,7 @@ function parseEL5(text, filename){
   const smoker=/Non.Smoker/i.test(text)?'Non-Smoker':'Smoker';
   const psAmts=[];const psRx=/Ps\s*([\d,]+\.\d{2})/g;let pm;
   while((pm=psRx.exec(text))!==null) psAmts.push(pm[1]);
-  const totalPremium=get(/Total Annual Premium \(to be Billed Regularly\)\s*Ps\s*([\d,]+\.\d{2})/i)||psAmts[psAmts.length-2]||psAmts[0]||'60,000.00';
+  const totalPremium=get(/Total (?:Initial )?Annual Premium \(to be Billed Regularly\)\s*Ps\s*([\d,]+\.\d{2})/i)||psAmts[psAmts.length-2]||psAmts[0]||'60,000.00';
   const annualPremium=totalPremium;
   const annPremForFace=parseInt(annualPremium.replace(/,/g,'').replace(/\..*/,''))||60000;
   const faceMultiplier=payPeriod===10?10:5;
@@ -4026,9 +4026,9 @@ function parseMXPrime(text, filename){
     const m=text.match(/Accidental Death Benefit\s*-\s*ADB\s*Ps\s*([\d,]+\.\d{2})\s*Ps\s*([\d,]+\.\d{2})/i);
     if(m){ adbFace=m[1]; adbPrem=m[2]; }
   }
-  const totalAnnualRegPremium=get(/Total Annual Regular Premium\s*Ps\s*([\d,]+\.\d{2})/i)||'0.00';
+  const totalAnnualRegPremium=get(/Total (?:Initial )?Annual Regular Premium\s*Ps\s*([\d,]+\.\d{2})/i)||'0.00';
   const excessPremium=get(/Annual Excess Premium[^P]*Ps\s*([\d,]+\.\d{2})/i)||'0.00';
-  const totalPremiumBilled=get(/Total Annual Premium \(to be Billed Regularly\)\s*Ps\s*([\d,]+\.\d{2})/i)||totalAnnualRegPremium;
+  const totalPremiumBilled=get(/Total (?:Initial )?Annual Premium \(to be Billed Regularly\)\s*Ps\s*([\d,]+\.\d{2})/i)||totalAnnualRegPremium;
   const totalBilledInt=parseInt(totalPremiumBilled.replace(/,/g,'').replace(/\..*/,''))||0;
   const payPeriodMatch=get(/payable for\s*(\d+)\s*years?/i,'10');
   const payYears=parseInt(payPeriodMatch)||10;
