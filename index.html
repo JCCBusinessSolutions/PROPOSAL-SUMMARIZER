@@ -1194,35 +1194,44 @@ const SLSI_VARIANT_YEARS= {5:5, 10:10, 15:15};
 //      years 15 and 20. SLSI5 vs SLSI10 also converge from year 10 on.
 //   3. All figures scale linearly with Face Amount (standard for this
 //      product), so results are scaled by faceInt / P1,000,000.
-const SLSI_KEYYEARS   = [1,2,3,5,6,7,10,15,20];
+const SLSI_KEYYEARS   = [1,2,3,4,5,6,7,8,9,10,15,20];
 const SLSI_REF_FACE   = 1000000;
 // Accumulated Endowment Benefit per P1,000,000 face -- identical across all variants
-const SLSI_ACCUM_ENDOW = {6:60000, 7:122700, 10:328243, 15:737293, 20:1247043};
+const SLSI_ACCUM_ENDOW = {6:60000, 7:122700, 8:188222, 9:256691, 10:328243, 15:737293, 20:1247043};
 const SLSI_KEYYEAR_DATA = {
   5:  {1:{gcv:null,  cashDiv:2546, accumDiv:2546,  tlb:2546},
        2:{gcv:158720,cashDiv:8000, accumDiv:10660, tlb:169380},
        3:{gcv:659470,cashDiv:13893,accumDiv:25033, tlb:684503},
+       4:{gcv:906590,cashDiv:19940,accumDiv:46100, tlb:952690},
        5:{gcv:1164920,cashDiv:26144,accumDiv:74318, tlb:1239238},
        6:{gcv:1192000,cashDiv:29262,accumDiv:106925,tlb:1358925},
        7:{gcv:1219360,cashDiv:29215,accumDiv:140952,tlb:1483012},
+       8:{gcv:1247020,cashDiv:29167,accumDiv:176462,tlb:1611704},
+       9:{gcv:1274980,cashDiv:29118,accumDiv:213520,tlb:1745191},
        10:{gcv:1303520,cashDiv:29069,accumDiv:252198,tlb:1883961},
        15:{gcv:1474400,cashDiv:28824,accumDiv:472541,tlb:2684234},
        20:{gcv:1651560,cashDiv:28563,accumDiv:745737,tlb:3644340}},
   10: {1:{gcv:null,  cashDiv:1219, accumDiv:1219,  tlb:1219},
        2:{gcv:56330, cashDiv:3975, accumDiv:5249,  tlb:61579},
        3:{gcv:355300,cashDiv:7087, accumDiv:12573, tlb:367873},
+       4:{gcv:491240,cashDiv:10281,accumDiv:23419, tlb:514659},
        5:{gcv:633420,cashDiv:13557,accumDiv:38030, tlb:671450},
        6:{gcv:748830,cashDiv:16529,accumDiv:56271, tlb:865101},
        7:{gcv:873050,cashDiv:19189,accumDiv:77992, tlb:1073742},
+       8:{gcv:1006600,cashDiv:21918,accumDiv:103420,tlb:1298242},
+       9:{gcv:1150020,cashDiv:24719,accumDiv:132793,tlb:1539504},
        10:{gcv:1303520,cashDiv:27592,accumDiv:166361,tlb:1798124},
        15:{gcv:1474400,cashDiv:28824,accumDiv:365572,tlb:2577265},
        20:{gcv:1651560,cashDiv:28563,accumDiv:612435,tlb:3511038}},
   15: {1:{gcv:null,  cashDiv:782,  accumDiv:782,   tlb:782},
        2:{gcv:40180, cashDiv:2646, accumDiv:3463,  tlb:43643},
        3:{gcv:255970,cashDiv:4839, accumDiv:8458,  tlb:264428},
+       4:{gcv:355600,cashDiv:7089, accumDiv:15928, tlb:371528},
        5:{gcv:459780,cashDiv:9398, accumDiv:26043, tlb:485823},
        6:{gcv:531150,cashDiv:11377,accumDiv:38592, tlb:629742},
        7:{gcv:607810,cashDiv:13017,accumDiv:53345, tlb:783855},
+       8:{gcv:690070,cashDiv:14699,accumDiv:70444, tlb:948736},
+       9:{gcv:778230,cashDiv:16424,accumDiv:90039, tlb:1124960},
        10:{gcv:872650,cashDiv:18195,accumDiv:112285,tlb:1313178},
        15:{gcv:1474400,cashDiv:27776,accumDiv:269427,tlb:2481120},
        20:{gcv:1651560,cashDiv:28563,accumDiv:492620,tlb:3391223}}
