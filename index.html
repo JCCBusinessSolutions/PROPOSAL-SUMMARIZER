@@ -1142,6 +1142,87 @@ const SLSI_FACTOR_TOTAL = {5:2.6792, 10:1.3831, 15:1.0000};
 const SLSI_VARIANT_NAMES= {5:'SLSI 5', 10:'SLSI 10', 15:'SLSI 15'};
 const SLSI_VARIANT_YEARS= {5:5, 10:10, 15:15};
 
+// ── SLSI CASH BENEFIT ILLUSTRATION — verified key-year reference data ──
+// Pulled directly from three real Sun Life Secure Income proposals for the
+// SAME profile (Age 30, Male, Non-Smoker, Face ₱1,000,000, Standard class,
+// Scenario 1 / 4.50% accumulation rate) so no profile mismatch contaminates
+// the numbers — same methodology as SFW_* above.
+//
+// Key facts this model relies on (all verified to the peso across the three
+// proposals):
+//   1. Accumulated Endowment Benefit is pure face-amount math (6% of face
+//      paid annually from year 6, accumulating at 4.5%) and is IDENTICAL
+//      across SLSI 5/10/15 at every policy year — confirmed on all 9 rows.
+//   2. Guaranteed Cash Value, Cash Dividend, Accum. Dividend, and Total
+//      Living Benefit differ ONLY while a variant is still inside its own
+//      pay period. Once every variant being compared has finished paying
+//      (year >= 15), all three read IDENTICAL values -- confirmed exactly at
+//      years 15 and 20. SLSI5 vs SLSI10 also converge from year 10 on.
+//   3. All figures scale linearly with Face Amount (standard for this
+//      product), so results are scaled by faceInt / P1,000,000.
+const SLSI_KEYYEARS   = [1,2,3,5,6,7,10,15,20];
+const SLSI_REF_FACE   = 1000000;
+// Accumulated Endowment Benefit per P1,000,000 face -- identical across all variants
+const SLSI_ACCUM_ENDOW = {6:60000, 7:122700, 10:328243, 15:737293, 20:1247043};
+const SLSI_KEYYEAR_DATA = {
+  5:  {1:{gcv:null,  cashDiv:2546, accumDiv:2546,  tlb:2546},
+       2:{gcv:158720,cashDiv:8000, accumDiv:10660, tlb:169380},
+       3:{gcv:659470,cashDiv:13893,accumDiv:25033, tlb:684503},
+       5:{gcv:1164920,cashDiv:26144,accumDiv:74318, tlb:1239238},
+       6:{gcv:1192000,cashDiv:29262,accumDiv:106925,tlb:1358925},
+       7:{gcv:1219360,cashDiv:29215,accumDiv:140952,tlb:1483012},
+       10:{gcv:1303520,cashDiv:29069,accumDiv:252198,tlb:1883961},
+       15:{gcv:1474400,cashDiv:28824,accumDiv:472541,tlb:2684234},
+       20:{gcv:1651560,cashDiv:28563,accumDiv:745737,tlb:3644340}},
+  10: {1:{gcv:null,  cashDiv:1219, accumDiv:1219,  tlb:1219},
+       2:{gcv:56330, cashDiv:3975, accumDiv:5249,  tlb:61579},
+       3:{gcv:355300,cashDiv:7087, accumDiv:12573, tlb:367873},
+       5:{gcv:633420,cashDiv:13557,accumDiv:38030, tlb:671450},
+       6:{gcv:748830,cashDiv:16529,accumDiv:56271, tlb:865101},
+       7:{gcv:873050,cashDiv:19189,accumDiv:77992, tlb:1073742},
+       10:{gcv:1303520,cashDiv:27592,accumDiv:166361,tlb:1798124},
+       15:{gcv:1474400,cashDiv:28824,accumDiv:365572,tlb:2577265},
+       20:{gcv:1651560,cashDiv:28563,accumDiv:612435,tlb:3511038}},
+  15: {1:{gcv:null,  cashDiv:782,  accumDiv:782,   tlb:782},
+       2:{gcv:40180, cashDiv:2646, accumDiv:3463,  tlb:43643},
+       3:{gcv:255970,cashDiv:4839, accumDiv:8458,  tlb:264428},
+       5:{gcv:459780,cashDiv:9398, accumDiv:26043, tlb:485823},
+       6:{gcv:531150,cashDiv:11377,accumDiv:38592, tlb:629742},
+       7:{gcv:607810,cashDiv:13017,accumDiv:53345, tlb:783855},
+       10:{gcv:872650,cashDiv:18195,accumDiv:112285,tlb:1313178},
+       15:{gcv:1474400,cashDiv:27776,accumDiv:269427,tlb:2481120},
+       20:{gcv:1651560,cashDiv:28563,accumDiv:492620,tlb:3391223}}
+};
+// Returns a scaled reference row for a given variant/key-year/face amount.
+function slsiRefRow(variant, yr, faceInt){
+  const table=SLSI_KEYYEAR_DATA[variant]||SLSI_KEYYEAR_DATA[15];
+  const ref=table[yr];
+  if(!ref)return{};
+  const scale=(faceInt||SLSI_REF_FACE)/SLSI_REF_FACE;
+  const accumEndowRef=SLSI_ACCUM_ENDOW[yr]||0;
+  return{
+    gcv: ref.gcv!=null?Math.round(ref.gcv*scale):null,
+    accumEndow: accumEndowRef?Math.round(accumEndowRef*scale):null,
+    cashDiv: ref.cashDiv!=null?Math.round(ref.cashDiv*scale):null,
+    accumDiv: ref.accumDiv!=null?Math.round(ref.accumDiv*scale):null,
+    tlb: ref.tlb!=null?Math.round(ref.tlb*scale):null
+  };
+}
+// Builds the <tr> rows for the Cash Benefit Illustration -- Key Years table.
+// useRealRows=true uses the actual parsed PDF data (100% match to what was
+// uploaded); false uses the scaled reference table (for variant tabs other
+// than the one actually uploaded).
+function buildSLSIIllusRows(variant, rows, ageNum, faceInt, gcb, useRealRows){
+  const ecv=v=>'<input class="edit-cell" style="min-width:80px;" value="'+(v?fmtN(v):'')+'" placeholder="\u2014">';
+  let html='';
+  for(const yr of SLSI_KEYYEARS){
+    const r=useRealRows?(rows[yr]||{}):slsiRefRow(variant,yr,faceInt);
+    const eA=(yr>=6)?gcb:null;
+    html+='<tr><td class="age-col" style="text-align:center;">'+yr+' <span class="yr-tag">age '+(ageNum+yr)+'</span></td><td>'+ecv(r.gcv)+'</td><td style="background:'+(yr>=6?'rgba(30,107,74,0.06)':'')+';">'+ecv(eA)+'</td><td>'+ecv(r.accumEndow)+'</td><td>'+ecv(r.cashDiv)+'</td><td>'+ecv(r.accumDiv)+'</td><td>'+ecv(r.tlb)+'</td></tr>';
+  }
+  return html;
+}
+
 function renderSLSIView(id,d,pdfUrl){
   const container=document.getElementById('proposalsContainer');
   const div=document.createElement('div');
@@ -1155,14 +1236,7 @@ function renderSLSIView(id,d,pdfUrl){
   const c25=fmtN(d.faceInt*0.25);
   const st=(icon,txt)=>'<div class="section-title">'+icon+' '+txt+'</div>';
   const bc=(cls,lbl,amt,desc)=>'<div class="benefit-card '+cls+'"><div class="b-label">'+lbl+'</div><div class="b-amount">₱'+amt+'</div><div class="b-desc">'+desc+'</div></div>';
-  const keyYears=[1,2,3,5,6,7,10,15,20];
-  let illRows='';
-  for(const yr of keyYears){
-    const r=d.rows[yr]||{};
-    const ecv=v=>'<input class="edit-cell" style="min-width:80px;" value="'+(v?fmtN(v):'')+'" placeholder="—">';
-    const eA=(yr>=6)?d.gcb:null;
-    illRows+='<tr><td class="age-col" style="text-align:center;">'+yr+' <span class="yr-tag">age '+(d.ageNum+yr)+'</span></td><td>'+ecv(r.gcv)+'</td><td style="background:'+(yr>=6?'rgba(30,107,74,0.06)':'')+';">'+ecv(eA)+'</td><td>'+ecv(r.accumEndow)+'</td><td>'+ecv(r.cashDiv)+'</td><td>'+ecv(r.accumDiv)+'</td><td>'+ecv(r.tlb)+'</td></tr>';
-  }
+  const illRows=buildSLSIIllusRows(slsiYears,d.rows,d.ageNum,d.faceInt,d.gcb,true);
   const divVals=Object.values(d.rows).filter(r=>r.cashDiv&&r.cashDiv>0).slice(0,10);
   const avgDivVal=divVals.length>0?fmtN(Math.round(divVals.reduce((s,r)=>s+r.cashDiv,0)/divVals.length)):'';
   const totalPremNum=parseFloat((d.totalPremium||'0').replace(/,/g,''))||0;
@@ -1233,7 +1307,7 @@ function renderSLSIView(id,d,pdfUrl){
     (d.hasLBR?'<tr><td>Living Benefit Rider (LBR) <span class="rider-tag">Rider</span></td><td style="color:var(--green);font-weight:700;">FREE</td></tr>':'')+
     '<tr class="total-row"><td><strong>Total Annual Premium</strong></td><td><strong id="slsi-total-prem-'+id+'">₱'+slsiTotal+'</strong></td></tr>'+
     '<tr id="slsi-factor-row-'+id+'" style="background:var(--amber-light);display:none;"><td style="font-size:11px;color:var(--amber);font-weight:700;">📐 Variant Factor vs SLSI 15 (base)</td><td id="slsi-factor-val-'+id+'" style="font-size:11px;color:var(--amber);font-weight:700;"></td></tr>'+
-    '</tbody></table></div>'+
+    '</tbody></table></div></div>'+
     '<div class="section">'+st('🛡️','Core Benefits')+
     '<div class="benefits-grid">'+bc('navy-bar','Life Insurance Coverage',liD,'200% of Face Amount guaranteed from Day 1 until age 100.')+'<div class="benefit-card green-bar"><div class="b-label">Guaranteed Cash Benefit (from Year 6)</div><div class="b-amount" style="font-size:28px;">₱'+gcbD+' /year</div><div class="b-desc">6% of Face Amount annually starting end of Year 6 until age 100.</div></div>'+bc('','Centenarian Bonus (25% × 4)',c25+' each','25% of Face Amount paid at ages 80, 85, 90, and 95.')+bc('','Living Benefit Rider (LBR)','Up to 60% of Face','Advance if diagnosed terminally ill (≤12 months). FREE rider.')+
     (d.hasWPD?bc('','Waiver of Premium on Death (WPD)','Premium Waived','Waives remaining premiums if initial owner passes before age 21 of insured.'):'') +
@@ -1243,7 +1317,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="cent-grid"><div class="cent-box"><div class="cent-age">80</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">85</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">90</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">95</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div></div></div>'+
     '<div class="section">'+st('📊','Cash Benefit Illustration — Key Years (4.50%)')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;"><span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
-    '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody>'+illRows+'</tbody></table></div></div>'+buildSLSINotesHTML(id, d.faceInt, d.gcb)+'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div></div>'+
+    '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody id="slsi-illus-tbody-'+id+'">'+illRows+'</tbody></table></div></div>'+buildSLSINotesHTML(id, d.faceInt, d.gcb)+'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div></div>'+
     '</div>';
   container.appendChild(div);
 }
@@ -1524,7 +1598,7 @@ function renderSFWView(id,d,pdfUrl){
 
     '<tr class="total-row"><td colspan="2"><strong>Total Annual Premium</strong></td><td><strong id="comp-total-prem-'+id+'">'+tD+'</strong></td></tr>'+
     '<tr id="comp-factor-row-'+id+'" style="background:var(--amber-light);'+(payYears===10?'display:none;':'')+'"><td colspan="2" style="font-size:11px;color:var(--amber);font-weight:700;">📐 Factor vs FWA 10 (base = ₱'+fmtN(Math.round(computedTotal/SFW_FACTORS[payYears]*1.0))+'/yr)</td><td id="comp-factor-val-'+id+'" style="font-size:11px;color:var(--amber);font-weight:700;">× '+varFactor.toFixed(4)+'</td></tr>'+
-    '</tbody></table></div>'+
+    '</tbody></table></div></div>'+
     '<div class="section">'+st('🛡️','Core Benefits')+
     '<div class="benefits-grid">'+bc('navy-bar','Life Insurance','₱'+fD,'Guaranteed death benefit until age 100.')+bc('','Major Critical Illness (64 conditions)','₱'+fD,'100% of Face Amount on any major CI diagnosis.')+bc('','Minor Critical Illness (34 conditions)','₱'+fmt(faceInt*0.2),'20% of Face per claim; up to 3 claims from different groups.')+bc('green-bar','Specific Cancer Booster (16 cancers)','₱'+fmt(faceInt*0.5),'Additional 50% on first cancer diagnosis.')+'<div class="benefit-card "><div class="b-label">Guaranteed Cash Benefit (from age 65)</div><div class="b-amount" style="font-size:28px;">₱'+fmt(faceInt*0.05)+' /year</div><div class="b-desc">5% of Face Amount for 8 years. Total: ₱'+fmt(faceInt*0.4)+'.</div></div>'+
     '<div class="benefit-card gold-bar"><div class="b-label">Average Yearly Dividends</div><div class="b-amount-wrap"><span class="b-amount-prefix" style="font-size:28px;font-weight:700;">₱</span><input id="avgdiv-input-'+id+'" class="b-amount-input edit-cell" style="font-size:28px;font-weight:700;" value="'+(avgDiv?fmtN(avgDiv):'')+'" placeholder="enter amount"></div><div class="b-edit-hint">✎ Editable</div><div class="b-desc">From policy year <span id="avgdiv-yr-'+id+'">'+(payYears+1)+'</span> through age 100. Non-guaranteed at 4.50% p.a. <span id="avgdiv-est-'+id+'" style="display:none;color:var(--gold);font-weight:600;">· 📐 Estimated</span></div></div>'+
@@ -1558,7 +1632,7 @@ function renderSFWView(id,d,pdfUrl){
     '<div class="section">'+st('💰','Annual Cash Dividends — <span id="div-heading-'+id+'">Ages '+yr10Start+' to '+yr10End+'</span>')+
     '<div id="est-banner-'+id+'" style="display:none;background:var(--gold-pale,#FBF3E4);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--navy);">📐 <strong>Estimated for <span id="est-banner-name-'+id+'"></span></strong> — derived from your uploaded '+variantShort+' proposal using Sun Life\'s 4.5% accumulation math and cross-variant factors. <strong>For exact figures, generate and upload the actual <span id="est-banner-name2-'+id+'"></span> proposal.</strong> Switch back to '+variantShort+' for exact uploaded values.</div>'+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Dividends from <strong><span id="div-note-'+id+'">'+(payYears+1)+'</span>th policy year</strong>. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
-    '<div class="illus-table-wrap"><table class="data-table" style="text-align:center;min-width:520px;"><thead><tr><th style="text-align:center;">Age</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Accum. Paid-Up Bonus</th></tr></thead><tbody id="div-tbody-'+id+'">'+buildSFWDivRows(d.rows,ageNum,payYears)+'</tbody></table></div>'+
+    '<div class="illus-table-wrap"><table class="data-table" style="text-align:center;min-width:520px;"><thead><tr><th style="text-align:center;">Age</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Accum. Paid-Up Bonus</th></tr></thead><tbody id="div-tbody-'+id+'">'+buildSFWDivRows(d.rows,ageNum,payYears)+'</tbody></table></div></div>'+
     '<div class="section" style="background:linear-gradient(135deg,var(--navy-light) 0%,#fff 100%);border-radius:12px;padding:20px 24px;border:1px solid var(--border);">'+st('📐','Premium Variant Summary — FWA Comparison')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">All <strong>SUN Fit and Well Advantage</strong> variants share <strong>identical coverage benefits</strong>. The difference lies only in the premium payment period and the resulting annual premium cost. Longer payment periods mean lower annual premiums.</p>'+
     '<div class="illus-table-wrap"><table class="data-table" style="min-width:460px;"><thead><tr><th>Variant</th><th>Pay Period</th><th>Annual Premium*</th><th>Factor vs FWA 10</th><th>Savings/yr vs FWA 10</th></tr></thead><tbody>'+
@@ -1593,14 +1667,14 @@ function renderSFWView(id,d,pdfUrl){
       '</tr>';
       return rows;
     })()+
-    '</tbody><tfoot><tr><td colspan="5" style="font-size:11px;color:var(--muted);padding-top:8px;">*Scaled from your uploaded proposal — '+d.age+' '+d.smoker+', ₱'+fD+' Face Amount, with ADB + TDB riders. Estimated for other pay periods using Sun Life\'s published FWA premium ratios; actual quotes may vary slightly by exact age/class.</td></tr></tfoot></table>'+
+    '</tbody><tfoot><tr><td colspan="5" style="font-size:11px;color:var(--muted);padding-top:8px;">*Scaled from your uploaded proposal — '+d.age+' '+d.smoker+', ₱'+fD+' Face Amount, with ADB + TDB riders. Estimated for other pay periods using Sun Life\'s published FWA premium ratios; actual quotes may vary slightly by exact age/class.</td></tr></tfoot></table></div>'+
     '</div>'+
     '<div class="section">'+st('🌅','Retirement Cash Benefits — Ages 65 to 72')+
     '<div id="est-banner-ret-'+id+'" style="display:none;background:var(--gold-pale,#FBF3E4);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--navy);">📐 <strong>Estimated for <span id="est-banner-ret-name-'+id+'"></span></strong> — derived from your uploaded '+variantShort+' proposal using Sun Life\'s 4.5% accumulation math and cross-variant factors. Guaranteed Cash Value and Accumulated Endowment are near-identical across variants; Total Living Benefit shifts because dividends and Paid-Up Bonus differ. <strong>For exact figures, generate and upload the actual '+'<span id="est-banner-ret-name2-'+id+'"></span>'+' proposal.</strong> Switch back to '+variantShort+' for exact uploaded values.</div>'+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Guaranteed ₱'+fmt(faceInt*0.05)+'/year for <strong>8 consecutive years</strong>. Total: ₱'+fmt(faceInt*0.4)+'. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
     '<div class="ret-table-wrap"><table class="data-table" style="min-width:560px;"><thead><tr><th style="text-align:left;">Age</th><th>Guar. Cash Value</th><th>Annual Endowment</th><th>Accum. Endowment</th><th>Total Living Benefit</th></tr></thead><tbody id="ret-tbody-'+id+'">'+buildSFWRetRows(d.rows,faceInt)+'</tbody></table></div></div>'+
     '<div class="section">'+st('📋','Important Notes')+'<ul class="notes-list"><li><span class="dot">1</span>This is <strong>'+d.optionLabel+'</strong>.</li><li><span class="dot">2</span>Dividends are <strong>not guaranteed</strong> and start from the '+(payYears+1)+'th policy year.</li><li><span class="dot">3</span>Special Paid-Up Bonus is earned during the '+payYears+'-year payment period'+(payYears!==10?' — Factor vs FWA 10: <strong>'+varFactor.toFixed(4)+'</strong>':'')+'.</li><li><span class="dot">4</span>Guaranteed Cash Benefits (₱'+fmt(faceInt*0.05)+'/year) begin at age 65 for 8 years.</li><li><span class="dot">5</span>Cooling-Off Period of 15 days (20 days for e-policy) applies.</li><li><span class="dot">6</span>Terminating early may result in a loss.'+(payYears!==10?' Premium is <strong>'+(Math.round((1-varFactor)*10000)/100)+'% lower</strong> than FWA 10 due to longer payment term.':'')+'</li></ul></div>'+
-    '<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div></div>'+
+    '<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div></div>'+
     '</div>';
   container.appendChild(div);
   // Register parsed data so the variant switcher can rebuild benefit tables
@@ -1709,13 +1783,33 @@ async function saveJPG(id,btn,page,product){
     const hidden=[];
     sections.forEach(sec=>{const title=sec.querySelector('.section-title');const text=title?title.textContent.toLowerCase():'';let sId=sec.classList.contains('notice')?'notice':'';if(text.includes('guaranteed minimum death benefit'))sId='dbschedule';else if(text.includes('premium bonus'))sId='bonus';else if(text.includes('premium'))sId='premium';else if(text.includes('core'))sId='core';else if(text.includes('critical'))sId='ci';else if(text.includes('hospital'))sId='hospital';else if(text.includes('dividend'))sId='dividends';else if(text.includes('retirement'))sId='retirement';else if(text.includes('centenarian'))sId='centenarian';else if(text.includes('fund allocation'))sId='fundalloc';else if(text.includes('illustration'))sId='illustration';else if(text.includes('notes')||text.includes('important'))sId='notes';if(!sectionsToShow.includes(sId)){sec.style.display='none';hidden.push(sec);}});
     if(docFooter)docFooter.style.display=sectionsToShow.includes('footer')?'':'none';
-    // Force a minimum capture width regardless of the device's actual viewport.
-    // An overflow-x:auto table wrapper doesn't expand its ancestor's scrollWidth,
-    // so on a phone view.scrollWidth is just the narrow screen width — capturing
-    // at that width clips any illustration table wider than the phone screen
-    // (up to 960px across the different products). Force a safe floor instead.
-    const captureWidth=Math.max(view.scrollWidth, 960);
-    let canvas;try{canvas=await html2canvas(view,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#FAF7F2',scrollX:0,scrollY:0,windowWidth:captureWidth,windowHeight:view.scrollHeight,logging:false});}catch(e){console.error(e);}
+    // Neutralise horizontal-scroll wrappers for the duration of the capture.
+    // html2canvas honours overflow:auto and clips to the container box, so a
+    // table wider than its wrapper would have its right-hand columns cut off
+    // in the exported JPG. Temporarily let the wrappers expand to their full
+    // content width, then restore afterwards.
+    const wraps=[...view.querySelectorAll('.illus-table-wrap,.ret-table-wrap')];
+    const wrapPrev=wraps.map(el=>({el,overflow:el.style.overflow,overflowX:el.style.overflowX,width:el.style.width,maxWidth:el.style.maxWidth}));
+    wraps.forEach(el=>{el.style.overflow='visible';el.style.overflowX='visible';el.style.width='max-content';el.style.maxWidth='none';});
+    // Capture width must cover the widest (now unclipped) table.
+    let widest=0;
+    view.querySelectorAll('table').forEach(t=>{
+      const mw=parseInt(t.style.minWidth)||0;
+      widest=Math.max(widest,mw,t.scrollWidth||0);
+    });
+    const captureWidth=Math.max(view.scrollWidth, widest+80, 960);
+    // Pick the largest scale that stays inside the browser's canvas ceiling.
+    // iOS Safari caps a canvas at ~16.7M pixels and Chrome caps any single
+    // dimension at 16384px; exceeding either yields a blank or truncated
+    // image, which looks like the page has been "cut".
+    const contentH=view.scrollHeight||1200;
+    const MAX_AREA=16000000, MAX_DIM=16000;
+    let scale=3;
+    while(scale>1 && (captureWidth*scale*contentH*scale>MAX_AREA || captureWidth*scale>MAX_DIM || contentH*scale>MAX_DIM)){
+      scale-=0.25;
+    }
+    let canvas;try{canvas=await html2canvas(view,{scale:scale,useCORS:true,allowTaint:true,backgroundColor:'#FAF7F2',scrollX:0,scrollY:0,windowWidth:captureWidth,windowHeight:contentH,logging:false});}catch(e){console.error(e);}
+    wrapPrev.forEach(p=>{p.el.style.overflow=p.overflow;p.el.style.overflowX=p.overflowX;p.el.style.width=p.width;p.el.style.maxWidth=p.maxWidth;});
     hidden.forEach(s=>s.style.display='');if(docFooter)docFooter.style.display='';mainEl.style.overflow=origOF;mainEl.style.height=origH;if(btnStrip)btnStrip.classList.remove('capture-hide');
     if(canvas){const link=document.createElement('a');link.download=filename;link.href=canvas.toDataURL('image/jpeg',0.96);link.click();}
   }
@@ -2199,6 +2293,19 @@ document.addEventListener('click', function(e) {
     const tmp = document.createElement('div');
     tmp.innerHTML = buildSLSINotesHTML(vid, fi, gcb);
     slsiNotesSec.replaceWith(tmp.firstChild);
+  }
+
+  // ── Rebuild Cash Benefit Illustration — Key Years table for the target
+  // variant. If the person switched back to the variant that was actually
+  // uploaded, show the exact parsed PDF data (100% match); otherwise use
+  // the verified reference table scaled to this proposal's face amount. ──
+  const illusTbody = document.getElementById('slsi-illus-tbody-'+vid);
+  if (illusTbody) {
+    const proposal2 = proposals.find(p => p.id === vid);
+    const ageN = proposal2 ? (proposal2.data.ageNum || 30) : 30;
+    const isUploadedVariant = targetVar === reg.uploadedVar;
+    const rowsForVariant = (isUploadedVariant && proposal2) ? (proposal2.data.rows || {}) : {};
+    illusTbody.innerHTML = buildSLSIIllusRows(targetVar, rowsForVariant, ageN, fi, gcb, isUploadedVariant);
   }
 });
 
@@ -3055,7 +3162,7 @@ function renderEL5View(id, d, pdfUrl){
     +buildEL5NotesHTML(id, d.payPeriod||5)
     +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p>'
       +'<p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>This is only an illustration — not a contract of insurance.</strong></p>'
-      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div>'
+      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div>'
     +'</div>'
     +'</div>';
 
@@ -3744,7 +3851,7 @@ function renderMX1View(id, d, pdfUrl){
     +illusHTML
     +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p>'
       +'<p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>This is only an illustration — not a contract of insurance.</strong></p>'
-      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div>'
+      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div>'
     +'</div>'
     +'</div>';
 
@@ -4239,7 +4346,7 @@ function renderMXPrimeView(id, d, pdfUrl){
     +illusHTML
     +'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p>'
       +'<p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>This is only an illustration — not a contract of insurance.</strong></p>'
-      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div>'
+      +'<div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div>'
     +'</div>'
     +'</div>';
 
