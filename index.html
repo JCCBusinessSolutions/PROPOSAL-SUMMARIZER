@@ -1382,6 +1382,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="cent-grid"><div class="cent-box"><div class="cent-age">80</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">85</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">90</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">95</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div></div></div>'+
     '<div class="section">'+st('📊','Cash Benefit Illustration — Key Years (4.50%)')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;"><span id="slsi-illus-src-'+id+'" data-uploaded="'+slsiYears+'" style="display:inline-block;background:var(--tag-bg);color:var(--green);font-weight:700;padding:3px 9px;border-radius:4px;margin-right:10px;">📄 Exact figures from uploaded '+SLSI_VARIANT_NAMES[slsiYears]+' proposal</span><span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
+    '<div id="slsi-illus-note-'+id+'" style="display:none;font-size:11.5px;line-height:1.65;background:var(--amber-light);border-left:3px solid var(--amber);color:#7A5C10;padding:10px 12px;border-radius:4px;margin-bottom:14px;"></div>'+
     '<div class="illus-table-wrap"><table class="data-table" style="min-width:960px;width:100%;"><thead><tr><th style="text-align:center;">Year/Age</th><th style="text-align:center;">Guar. Cash Value</th><th style="text-align:center;">Endowment Benefit<br><span style="font-size:9px;font-weight:400;opacity:0.75">Starts Year 6</span></th><th style="text-align:center;">Accum. Endowment</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Total Living Benefit</th></tr></thead><tbody id="slsi-illus-tbody-'+id+'">'+illRows+'</tbody></table></div></div>'+buildSLSINotesHTML(id, d.faceInt, d.gcb)+'<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div></div>'+
     '</div>';
   container.appendChild(div);
@@ -2350,11 +2351,17 @@ document.addEventListener('click', function(e) {
   }
 
   // ── Rebuild Important Notes (faceInt stays same, just refresh section ID) ──
+  // NOTE: proposal / fi / gcb are declared at this level (not inside the
+  // if-block below) because the Cash Benefit Illustration rebuild that
+  // follows also needs them. Scoping them to the notes block previously
+  // threw a ReferenceError here, which silently aborted the rest of this
+  // handler and left the illustration table frozen on the uploaded variant.
+  const slsiProposal = proposals.find(p => p.id === vid);
+  const fi  = slsiProposal ? (slsiProposal.data.faceInt || 1000000) : 1000000;
+  const gcb = slsiProposal ? (slsiProposal.data.gcb     || fi*0.06) : fi*0.06;
+
   const slsiNotesSec = document.getElementById('slsi-notes-sec-'+vid);
   if (slsiNotesSec) {
-    const proposal = proposals.find(p => p.id === vid);
-    const fi  = proposal ? (proposal.data.faceInt || 1000000) : 1000000;
-    const gcb = proposal ? (proposal.data.gcb     || fi*0.06) : fi*0.06;
     const tmp = document.createElement('div');
     tmp.innerHTML = buildSLSINotesHTML(vid, fi, gcb);
     slsiNotesSec.replaceWith(tmp.firstChild);
@@ -2362,14 +2369,14 @@ document.addEventListener('click', function(e) {
 
   // ── Rebuild Cash Benefit Illustration — Key Years table for the target
   // variant. If the person switched back to the variant that was actually
-  // uploaded, show the exact parsed PDF data (100% match); otherwise use
-  // the verified reference table scaled to this proposal's face amount. ──
+  // uploaded, show the exact parsed PDF data (100% match); otherwise show
+  // estimates from the verified reference table, scaled to this proposal's
+  // face amount, clearly flagged as estimates. ──
   const illusTbody = document.getElementById('slsi-illus-tbody-'+vid);
   if (illusTbody) {
-    const proposal2 = proposals.find(p => p.id === vid);
-    const ageN = proposal2 ? (proposal2.data.ageNum || 30) : 30;
+    const ageN = slsiProposal ? (slsiProposal.data.ageNum || 30) : 30;
     const isUploadedVariant = targetVar === reg.uploadedVar;
-    const rowsForVariant = (isUploadedVariant && proposal2) ? (proposal2.data.rows || {}) : {};
+    const rowsForVariant = (isUploadedVariant && slsiProposal) ? (slsiProposal.data.rows || {}) : {};
     illusTbody.innerHTML = buildSLSIIllusRows(targetVar, rowsForVariant, ageN, fi, gcb, isUploadedVariant);
 
     // Make it unmistakable whether these figures came straight from the
@@ -2382,9 +2389,23 @@ document.addEventListener('click', function(e) {
         srcBadge.style.color = 'var(--green)';
       } else {
         srcBadge.innerHTML = '📐 Estimated for '+SLSI_VARIANT_NAMES[targetVar]+
-          ' · uploaded proposal was '+SLSI_VARIANT_NAMES[reg.uploadedVar];
+          ' — scaled from your uploaded '+SLSI_VARIANT_NAMES[reg.uploadedVar]+' proposal';
         srcBadge.style.background = 'var(--amber-light)';
         srcBadge.style.color = 'var(--amber)';
+      }
+    }
+    // Guidance line — only shown while viewing an estimated variant.
+    const estNote = document.getElementById('slsi-illus-note-'+vid);
+    if (estNote) {
+      if (isUploadedVariant) {
+        estNote.style.display = 'none';
+      } else {
+        estNote.style.display = '';
+        estNote.innerHTML = '⚠️ These are <strong>estimates</strong> for '+SLSI_VARIANT_NAMES[targetVar]+
+          ', projected from your uploaded '+SLSI_VARIANT_NAMES[reg.uploadedVar]+
+          ' proposal at the same face amount and issue age. Guaranteed Cash Value and dividends vary by pay period, '+
+          'so figures may differ from an actual quote. <strong>Upload the actual '+SLSI_VARIANT_NAMES[targetVar]+
+          ' proposal to show exact values.</strong>';
       }
     }
   }
