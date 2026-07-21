@@ -210,7 +210,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .cent-age{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--gold);line-height:1;}
 .cent-lbl{font-size:10px;font-weight:700;color:var(--navy);margin-top:4px;text-transform:uppercase;letter-spacing:0.05em;}
 .cent-val{font-size:11.5px;color:var(--green);font-weight:600;margin-top:3px;}
-.illus-table-wrap{overflow-x:auto;width:100%;}
+.illus-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;}
 /* ── PAYMENT MODE ── */
   .payment-mode-wrap{background:white;border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04);}
   .payment-mode-label{font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
@@ -1516,7 +1516,7 @@ function renderSFWView(id,d,pdfUrl){
     '<div style="margin-top:6px;font-size:10.5px;color:var(--muted);font-style:italic;padding-left:2px;">* There are slight differences due to decimal rounding.</div>'+
     '</div>'+
     '<div class="premium-grid"><div class="p-card hl"><div class="p-card-label">Total Annual Premium</div><div class="p-card-value" id="pm-card-sfw-'+id+'">'+tD+'</div><div class="p-card-sub" id="var-pcard-sub-'+id+'">Pay for '+payYears+' years only</div></div><div class="p-card"><div class="p-card-label">Face Amount</div><div class="p-card-value">₱'+fD+'</div><div class="p-card-sub">Original face amount</div></div><div class="p-card"><div class="p-card-label">Coverage Duration</div><div class="p-card-value">Until 100</div><div class="p-card-sub">Whole life protection</div></div></div>'+
-    '<table class="data-table" id="comp-table-'+id+'"><thead><tr><th>Component</th><th>Coverage</th><th>Annual Premium</th></tr></thead><tbody>'+
+    '<div class="illus-table-wrap"><table class="data-table" id="comp-table-'+id+'" style="min-width:420px;"><thead><tr><th>Component</th><th>Coverage</th><th>Annual Premium</th></tr></thead><tbody>'+
     '<tr id="comp-plan-row-'+id+'"><td><strong id="comp-plan-name-'+id+'">'+variantLabel+'</strong><br><span style="font-size:11px;color:var(--muted)" id="comp-plan-meta-'+id+'">Basic Plan · '+payYears+'-Year Payment · '+d.smoker+' · '+d.gender+'</span></td><td>₱'+fD+'</td><td id="comp-basic-prem-'+id+'" data-base="'+d.basicPremium.replace(/,/g,'')+'">₱'+d.basicPremium+'</td></tr>'+
     (d.hasADB?'<tr><td>Accidental Death Benefit (ADB) <span class="rider-tag">Rider</span></td><td>'+(d.adbCovAmt&&d.adbCovAmt!=='0'?'₱'+d.adbCovAmt:'—')+'</td><td id="comp-adb-prem-'+id+'" data-base="'+d.adbPrem.replace(/,/g,'')+'">₱'+d.adbPrem+'</td></tr>':'')+
     (d.hasTDB?'<tr><td>Total Disability Benefit (TDB) <span class="rider-tag">Rider</span></td><td>Waiver of premium</td><td id="comp-tdb-prem-'+id+'" data-base="'+d.tdbPrem.replace(/,/g,'')+'">₱'+d.tdbPrem+'</td></tr>':'')+
@@ -1558,10 +1558,10 @@ function renderSFWView(id,d,pdfUrl){
     '<div class="section">'+st('💰','Annual Cash Dividends — <span id="div-heading-'+id+'">Ages '+yr10Start+' to '+yr10End+'</span>')+
     '<div id="est-banner-'+id+'" style="display:none;background:var(--gold-pale,#FBF3E4);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--navy);">📐 <strong>Estimated for <span id="est-banner-name-'+id+'"></span></strong> — derived from your uploaded '+variantShort+' proposal using Sun Life\'s 4.5% accumulation math and cross-variant factors. <strong>For exact figures, generate and upload the actual <span id="est-banner-name2-'+id+'"></span> proposal.</strong> Switch back to '+variantShort+' for exact uploaded values.</div>'+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Dividends from <strong><span id="div-note-'+id+'">'+(payYears+1)+'</span>th policy year</strong>. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
-    '<table class="data-table" style="text-align:center;"><thead><tr><th style="text-align:center;">Age</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Accum. Paid-Up Bonus</th></tr></thead><tbody id="div-tbody-'+id+'">'+buildSFWDivRows(d.rows,ageNum,payYears)+'</tbody></table></div>'+
+    '<div class="illus-table-wrap"><table class="data-table" style="text-align:center;min-width:520px;"><thead><tr><th style="text-align:center;">Age</th><th style="text-align:center;">Cash Dividend</th><th style="text-align:center;">Accum. Dividend</th><th style="text-align:center;">Accum. Paid-Up Bonus</th></tr></thead><tbody id="div-tbody-'+id+'">'+buildSFWDivRows(d.rows,ageNum,payYears)+'</tbody></table></div>'+
     '<div class="section" style="background:linear-gradient(135deg,var(--navy-light) 0%,#fff 100%);border-radius:12px;padding:20px 24px;border:1px solid var(--border);">'+st('📐','Premium Variant Summary — FWA Comparison')+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">All <strong>SUN Fit and Well Advantage</strong> variants share <strong>identical coverage benefits</strong>. The difference lies only in the premium payment period and the resulting annual premium cost. Longer payment periods mean lower annual premiums.</p>'+
-    '<table class="data-table" style="min-width:460px;"><thead><tr><th>Variant</th><th>Pay Period</th><th>Annual Premium*</th><th>Factor vs FWA 10</th><th>Savings/yr vs FWA 10</th></tr></thead><tbody>'+
+    '<div class="illus-table-wrap"><table class="data-table" style="min-width:460px;"><thead><tr><th>Variant</th><th>Pay Period</th><th>Annual Premium*</th><th>Factor vs FWA 10</th><th>Savings/yr vs FWA 10</th></tr></thead><tbody>'+
     (function(){
       // Dynamic: scales the actual uploaded proposal's real total premium
       // (computedTotal) using the same ratio logic as the interactive variant
@@ -1598,7 +1598,7 @@ function renderSFWView(id,d,pdfUrl){
     '<div class="section">'+st('🌅','Retirement Cash Benefits — Ages 65 to 72')+
     '<div id="est-banner-ret-'+id+'" style="display:none;background:var(--gold-pale,#FBF3E4);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--navy);">📐 <strong>Estimated for <span id="est-banner-ret-name-'+id+'"></span></strong> — derived from your uploaded '+variantShort+' proposal using Sun Life\'s 4.5% accumulation math and cross-variant factors. Guaranteed Cash Value and Accumulated Endowment are near-identical across variants; Total Living Benefit shifts because dividends and Paid-Up Bonus differ. <strong>For exact figures, generate and upload the actual '+'<span id="est-banner-ret-name2-'+id+'"></span>'+' proposal.</strong> Switch back to '+variantShort+' for exact uploaded values.</div>'+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Guaranteed ₱'+fmt(faceInt*0.05)+'/year for <strong>8 consecutive years</strong>. Total: ₱'+fmt(faceInt*0.4)+'. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
-    '<div style="overflow-x:auto;"><table class="data-table" style="min-width:560px;"><thead><tr><th style="text-align:left;">Age</th><th>Guar. Cash Value</th><th>Annual Endowment</th><th>Accum. Endowment</th><th>Total Living Benefit</th></tr></thead><tbody id="ret-tbody-'+id+'">'+buildSFWRetRows(d.rows,faceInt)+'</tbody></table></div></div>'+
+    '<div class="ret-table-wrap"><table class="data-table" style="min-width:560px;"><thead><tr><th style="text-align:left;">Age</th><th>Guar. Cash Value</th><th>Annual Endowment</th><th>Accum. Endowment</th><th>Total Living Benefit</th></tr></thead><tbody id="ret-tbody-'+id+'">'+buildSFWRetRows(d.rows,faceInt)+'</tbody></table></div></div>'+
     '<div class="section">'+st('📋','Important Notes')+'<ul class="notes-list"><li><span class="dot">1</span>This is <strong>'+d.optionLabel+'</strong>.</li><li><span class="dot">2</span>Dividends are <strong>not guaranteed</strong> and start from the '+(payYears+1)+'th policy year.</li><li><span class="dot">3</span>Special Paid-Up Bonus is earned during the '+payYears+'-year payment period'+(payYears!==10?' — Factor vs FWA 10: <strong>'+varFactor.toFixed(4)+'</strong>':'')+'.</li><li><span class="dot">4</span>Guaranteed Cash Benefits (₱'+fmt(faceInt*0.05)+'/year) begin at age 65 for 8 years.</li><li><span class="dot">5</span>Cooling-Off Period of 15 days (20 days for e-policy) applies.</li><li><span class="dot">6</span>Terminating early may result in a loss.'+(payYears!==10?' Premium is <strong>'+(Math.round((1-varFactor)*10000)/100)+'% lower</strong> than FWA 10 due to longer payment term.':'')+'</li></ul></div>'+
     '<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong> &nbsp;·&nbsp; JAYMAR CASTRO, CPA</div></div></div>'+
     '</div>';
@@ -4459,15 +4459,120 @@ window.addEventListener('orientationchange',function(){
     </span>
     <button onclick="closePDFModal()" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:18px;line-height:1;cursor:pointer;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">&#x2715;</button>
   </div>
-  <div id="pdfViewerFrame" style="flex:1;width:100%;background:#525659;overflow:auto;"></div>
+  <div id="pdfViewerFrame" style="flex:1;width:100%;background:#525659;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;"></div>
+  <div id="pdfPagerBar" style="display:none;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;padding:8px 10px;background:#0D2340;flex-shrink:0;border-top:1px solid rgba(255,255,255,0.12);padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));">
+    <button id="pdfPrevBtn" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:15px;font-weight:700;border-radius:8px;min-width:46px;height:40px;cursor:pointer;">&#x2039;</button>
+    <span id="pdfPageLabel" style="color:var(--gold);font-weight:700;font-size:12.5px;min-width:96px;text-align:center;">Page 1 / 1</span>
+    <button id="pdfNextBtn" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:15px;font-weight:700;border-radius:8px;min-width:46px;height:40px;cursor:pointer;">&#x203A;</button>
+    <span style="width:1px;height:26px;background:rgba(255,255,255,0.18);margin:0 4px;"></span>
+    <button id="pdfZoomOutBtn" title="Zoom out" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:17px;font-weight:700;border-radius:8px;min-width:44px;height:40px;cursor:pointer;">&#8722;</button>
+    <button id="pdfZoomLabel" title="Reset to fit" style="background:rgba(255,255,255,0.06);border:none;color:#fff;font-weight:700;font-size:12px;border-radius:8px;min-width:60px;height:40px;cursor:pointer;">100%</button>
+    <button id="pdfZoomInBtn" title="Zoom in" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:17px;font-weight:700;border-radius:8px;min-width:44px;height:40px;cursor:pointer;">+</button>
+    <button id="pdfFitBtn" title="Toggle fit whole page / fit width" style="background:rgba(255,255,255,0.12);border:none;color:var(--gold);font-weight:700;font-size:11.5px;border-radius:8px;padding:0 12px;height:40px;cursor:pointer;">FIT PAGE</button>
+  </div>
 </div>
 
 <script>
+// ── Paginated PDF viewer state ──
+// Renders ONE page at a time rather than stacking every page as its own
+// canvas. Mobile Safari caps total canvas memory and silently paints blank
+// white canvases once past the cap, so a many-page proposal would appear to
+// "stop working" partway down. Single-page rendering keeps memory flat and
+// gives real page navigation instead of one long unlabelled scroll.
+var pdfDocRef = null, pdfCurPage = 1, pdfTotalPages = 1, pdfRenderToken = 0;
+// Fit mode + zoom. Previously the page was always scaled to fill the frame
+// width, so on a wide laptop screen an A4 page rendered ~1400px across —
+// far larger than natural size, which read as "too zoomed". Now it defaults
+// to fitting the WHOLE page in view, with manual zoom on top.
+var pdfFitMode = 'page';   // 'page' = whole page visible, 'width' = fill width
+var pdfZoomPct = 100;      // percentage applied on top of the fit scale
+var PDF_ZOOM_STEPS = [50, 65, 80, 100, 125, 150, 200, 300];
+
+function pdfUpdatePager() {
+  var lbl = document.getElementById('pdfPageLabel');
+  var prev = document.getElementById('pdfPrevBtn');
+  var next = document.getElementById('pdfNextBtn');
+  var zl = document.getElementById('pdfZoomLabel');
+  var fb = document.getElementById('pdfFitBtn');
+  if (lbl) lbl.textContent = 'Page ' + pdfCurPage + ' / ' + pdfTotalPages;
+  if (prev) { prev.disabled = (pdfCurPage <= 1); prev.style.opacity = prev.disabled ? '0.35' : '1'; }
+  if (next) { next.disabled = (pdfCurPage >= pdfTotalPages); next.style.opacity = next.disabled ? '0.35' : '1'; }
+  if (zl) zl.textContent = pdfZoomPct + '%';
+  if (fb) fb.textContent = (pdfFitMode === 'page') ? 'FIT PAGE' : 'FIT WIDTH';
+}
+
+function pdfSetZoom(pct) {
+  pdfZoomPct = Math.max(50, Math.min(300, pct));
+  pdfShowPage(pdfCurPage);
+}
+function pdfZoomStep(dir) {
+  var i = 0, best = 0, cur = pdfZoomPct;
+  for (i = 0; i < PDF_ZOOM_STEPS.length; i++) { if (PDF_ZOOM_STEPS[i] === cur) { best = i; break; } if (PDF_ZOOM_STEPS[i] < cur) best = i; }
+  var ni = Math.max(0, Math.min(PDF_ZOOM_STEPS.length - 1, best + dir));
+  pdfSetZoom(PDF_ZOOM_STEPS[ni]);
+}
+
+function pdfShowPage(n) {
+  if (!pdfDocRef) return;
+  n = Math.max(1, Math.min(pdfTotalPages, n));
+  pdfCurPage = n;
+  pdfUpdatePager();
+  var frame = document.getElementById('pdfViewerFrame');
+  if (!frame) return;
+  var myToken = ++pdfRenderToken;
+  pdfDocRef.getPage(n).then(function(page) {
+    if (myToken !== pdfRenderToken) return;
+    var base = page.getViewport({ scale: 1 });
+    var padW = 24, padH = 24;
+    var availW = Math.max(240, frame.clientWidth - padW);
+    var availH = Math.max(240, frame.clientHeight - padH);
+    // Fit scale: either fit the whole page in view, or fill the width.
+    var fit = (pdfFitMode === 'page')
+      ? Math.min(availW / base.width, availH / base.height)
+      : (availW / base.width);
+    var cssScale = fit * (pdfZoomPct / 100);
+    var cssW = base.width * cssScale;
+    var cssH = base.height * cssScale;
+    // Backing store: sharpen with DPR but cap total pixels so low-memory
+    // devices never hit the blank-canvas ceiling.
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var renderScale = cssScale * dpr;
+    var MAXPX = 4200000;
+    if (base.width * renderScale * base.height * renderScale > MAXPX) {
+      renderScale = Math.sqrt(MAXPX / (base.width * base.height));
+    }
+    var viewport = page.getViewport({ scale: renderScale });
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(viewport.width));
+    canvas.height = Math.max(1, Math.floor(viewport.height));
+    canvas.style.cssText = 'display:block;width:' + Math.round(cssW) + 'px;height:' + Math.round(cssH) +
+      'px;margin:12px auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.4);';
+    page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function() {
+      if (myToken !== pdfRenderToken) return;
+      frame.innerHTML = '';
+      frame.appendChild(canvas);
+      frame.scrollTop = 0;
+      frame.scrollLeft = Math.max(0, (canvas.offsetWidth - frame.clientWidth) / 2);
+    }).catch(function() {
+      if (myToken !== pdfRenderToken) return;
+      frame.innerHTML = '<p style="color:#fff;padding:20px;text-align:center;font-size:13px;">Could not render page ' + n + '. Try the next page.</p>';
+    });
+  }).catch(function() {
+    if (myToken !== pdfRenderToken) return;
+    frame.innerHTML = '<p style="color:#fff;padding:20px;text-align:center;font-size:13px;">Could not load page ' + n + '.</p>';
+  });
+}
+
 function closePDFModal() {
   var modal = document.getElementById('pdfViewerModal');
   var frame = document.getElementById('pdfViewerFrame');
+  var bar = document.getElementById('pdfPagerBar');
   modal.style.display = 'none';
   frame.innerHTML = '';
+  if (bar) bar.style.display = 'none';
+  pdfRenderToken++;      // cancel any in-flight render
+  if (pdfDocRef && pdfDocRef.destroy) { try { pdfDocRef.destroy(); } catch(e){} }
+  pdfDocRef = null;
   document.body.style.overflow = '';
 }
 
@@ -4493,26 +4598,88 @@ document.addEventListener('click', function(e) {
   for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
   pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdfDoc) {
-    frame.innerHTML = '';
-    var numPages = pdfDoc.numPages;
-    var renderPage = function(pageNum) {
-      pdfDoc.getPage(pageNum).then(function(page) {
-        var viewport = page.getViewport({ scale: 1.5 });
-        var canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.cssText = 'display:block;width:100%;max-width:100%;margin:0 auto 8px;background:#fff;';
-        frame.appendChild(canvas);
-        page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function() {
-          if (pageNum < numPages) renderPage(pageNum + 1);
-        });
-      });
-    };
-    renderPage(1);
+    pdfDocRef = pdfDoc;
+    pdfTotalPages = pdfDoc.numPages;
+    pdfCurPage = 1;
+    // Laptop/desktop: show the whole page (natural reading size).
+    // Phone: fit width, since a full page shrunk to a phone's height is unreadable.
+    pdfFitMode = (window.innerWidth >= 820) ? 'page' : 'width';
+    pdfZoomPct = 100;
+    var bar = document.getElementById('pdfPagerBar');
+    if (bar) bar.style.display = 'flex';
+    pdfShowPage(1);
   }).catch(function(err) {
     frame.innerHTML = '<p style="color:#fff;padding:20px;text-align:center;">Could not render PDF: ' + err.message + '</p>';
   });
 });
+
+// Pager + zoom buttons
+document.addEventListener('click', function(e) {
+  if (e.target.closest('#pdfPrevBtn')) { pdfShowPage(pdfCurPage - 1); }
+  else if (e.target.closest('#pdfNextBtn')) { pdfShowPage(pdfCurPage + 1); }
+  else if (e.target.closest('#pdfZoomInBtn')) { pdfZoomStep(1); }
+  else if (e.target.closest('#pdfZoomOutBtn')) { pdfZoomStep(-1); }
+  else if (e.target.closest('#pdfZoomLabel')) { pdfSetZoom(100); }
+  else if (e.target.closest('#pdfFitBtn')) {
+    pdfFitMode = (pdfFitMode === 'page') ? 'width' : 'page';
+    pdfZoomPct = 100;
+    pdfShowPage(pdfCurPage);
+  }
+});
+
+// Ctrl/Cmd + wheel to zoom (laptop trackpad pinch maps to this)
+(function(){
+  var frame = document.getElementById('pdfViewerFrame');
+  if (!frame) return;
+  frame.addEventListener('wheel', function(e){
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    pdfZoomStep(e.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+})();
+
+// Re-render on window resize so fit modes stay correct
+(function(){
+  var t = null;
+  window.addEventListener('resize', function(){
+    var modal = document.getElementById('pdfViewerModal');
+    if (!modal || modal.style.display === 'none' || !pdfDocRef) return;
+    clearTimeout(t);
+    t = setTimeout(function(){ pdfShowPage(pdfCurPage); }, 150);
+  });
+})();
+
+// Keyboard: arrows page, +/- zoom, 0 resets
+document.addEventListener('keydown', function(e) {
+  var modal = document.getElementById('pdfViewerModal');
+  if (!modal || modal.style.display === 'none') return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { pdfShowPage(pdfCurPage + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { pdfShowPage(pdfCurPage - 1); }
+  else if (e.key === '+' || e.key === '=') { pdfZoomStep(1); }
+  else if (e.key === '-' || e.key === '_') { pdfZoomStep(-1); }
+  else if (e.key === '0') { pdfSetZoom(100); }
+});
+
+// Horizontal swipe to change pages (mobile). Vertical swipes are left alone
+// so the page itself can still be scrolled when zoomed in.
+(function(){
+  var frame = document.getElementById('pdfViewerFrame');
+  if (!frame) return;
+  var x0 = null, y0 = null;
+  frame.addEventListener('touchstart', function(e){
+    if (e.touches.length !== 1) { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  frame.addEventListener('touchend', function(e){
+    if (x0 === null) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+      pdfShowPage(dx < 0 ? pdfCurPage + 1 : pdfCurPage - 1);
+    }
+    x0 = null;
+  }, { passive: true });
+})();
 
 // Close on backdrop click
 document.getElementById('pdfViewerModal').addEventListener('click', function(e) {
