@@ -1081,7 +1081,7 @@ function parseSLSI(text,filename){
   const propDate=get(/Date\s*:\s*(\d{1,2}\s+[A-Z][a-z]+\s+\d{4})/)||get(/Date\s*:?\s*([\d]+ [A-Z][a-z]+ [\d]+)/);
   const branch=get(/Branch\s*:\s*([A-Z][A-Z\s]+?)(?:\s+Attachment|\s*\n)/i)||'\u2014';
 
-  const rows=parseSLSIRows(text);
+  const rows=parseSLSIRows(text,ageNum);
   const faceInt=parseInt((face||'1000000').replace(/,/g,'').replace(/\..*$/, ''))||1000000;
   const gcb=faceInt*0.06;
 
@@ -1091,27 +1091,61 @@ function parseSLSI(text,filename){
          gcb,preparedBy,branch,propDate,rows,filename,
          slsiYears,slsiVariantLabel,slsiVariantShort,slsiVariantTag};
 }
-function parseSLSIRows(text){
+// Parses the "Benefit Illustration / Accumulated Endowment Benefit" table.
+//
+// The app's pdfPageTextLines() groups PDF text items by y-coordinate, so each
+// table row arrives as ONE line with every column joined by single spaces:
+//   "6 1,147,790 531,150 60,000 11,377 38,592 629,742 2,098,592"
+// (An earlier version of this function expected the year to sit alone on its
+// own line and therefore matched nothing, leaving the whole illustration blank.)
+//
+// Full column order, left to right:
+//   Year | Cumulative Basic Premiums Paid | Guaranteed Cash Value |
+//   Accumulated Endowment Benefit | Accumulated Centenarian Bonus |
+//   Illustrative Cash Dividend | Illustrative Accumulated Dividend |
+//   Total Living Benefit | Total Death Benefit
+//
+// Blank cells leave NO placeholder in the extracted text, so which columns are
+// actually present on a given row is derived from SLSI's own product rules
+// (same approach as extractSFWRows above):
+//   - Guaranteed Cash Value      → blank in year 1, present from year 2
+//   - Accumulated Endowment      → starts end of policy year 6 (6% of face)
+//   - Accumulated Centenarian    → only from attained age 80 onward
+//   - Cash/Accum Dividend, TLB, TDB → always present
+// Verified against real SLSI 5, 10 and 15 proposals: the expected column count
+// matches the actual number count on every printed row, so a row whose count
+// disagrees is skipped rather than guessed at (never misassign a column).
+function parseSLSIRows(text,ageNum){
   const rows={};
+  const age0=(typeof ageNum==='number'&&!isNaN(ageNum))?ageNum:30;
   const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-  function pn(s){const m=(s||'').match(/[\d,]+(?:\.\d+)?/g)||[];return m.map(n=>parseFloat(n.replace(/,/g,''))).filter(n=>!isNaN(n)&&n>0);}
+  function pn(s){const m=(s||'').match(/[\d,]+(?:\.\d+)?/g)||[];return m.map(n=>parseFloat(n.replace(/,/g,'')));}
+  const rowRx=/^(\d{1,2})\s+((?:[\d,]+(?:\.\d+)?\s*){4,9})$/;
   let inTable=false;
-  for(let i=0;i<lines.length;i++){
-    const l=lines[i];
-    if(/Benefit Illustration/i.test(l)&&/Accumulated Endowment/i.test(lines[i+1]||'')){inTable=true;continue;}
+  for(const l of lines){
+    if(/Benefit Illustration/i.test(l)){inTable=true;continue;}
     if(!inTable)continue;
-    const yr=parseInt(l);
-    if(!isNaN(yr)&&String(yr)===l&&yr>=1&&yr<=96){
-      const allNums=[];
-      for(let k=i;k<Math.min(i+4,lines.length);k++)pn(lines[k]).forEach(n=>allNums.push(n));
-      const gcv=allNums.find(v=>v>50000&&v<2000000&&v!==allNums[0]&&v!==allNums[1])||null;
-      const cashDiv=allNums.find(v=>v>=1000&&v<=35000)||null;
-      const accumDiv=allNums.find(v=>v>1000&&v!==cashDiv&&v<100000&&v>(cashDiv||0))||null;
-      const accumEndow=allNums.find(v=>v>=50000&&v!==gcv)||null;
-      const tlb=allNums.filter(v=>v>500000).sort((a,b)=>a-b)[0]||null;
-      const tdb=allNums.filter(v=>v>500000).sort((a,b)=>b-a)[0]||null;
-      rows[yr]={gcv,cashDiv,accumDiv,accumEndow,tlb,tdb};
-    }
+    const m=l.match(rowRx);
+    if(!m)continue;
+    const yr=parseInt(m[1]);
+    if(isNaN(yr)||yr<1||yr>96)continue;
+    const nums=pn(m[2]);
+    const attAge=age0+yr;
+    const hasGCV=yr>=2;
+    const hasAccumEndow=yr>=6;
+    const hasCent=attAge>=80;
+    const expected=1+(hasGCV?1:0)+(hasAccumEndow?1:0)+(hasCent?1:0)+4;
+    if(nums.length!==expected)continue; // don't guess — skip rather than misassign
+    let i=1; // idx0 = cumulative basic premiums paid, not shown in the UI table
+    const r={};
+    if(hasGCV)r.gcv=nums[i++];
+    if(hasAccumEndow)r.accumEndow=nums[i++];
+    if(hasCent)r.centBonus=nums[i++];
+    r.cashDiv=nums[i++];
+    r.accumDiv=nums[i++];
+    r.tlb=nums[i++];
+    r.tdb=nums[i++];
+    rows[yr]=r;
   }
   return rows;
 }
@@ -1246,8 +1280,22 @@ function renderSLSIView(id,d,pdfUrl){
   const st=(icon,txt)=>'<div class="section-title">'+icon+' '+txt+'</div>';
   const bc=(cls,lbl,amt,desc)=>'<div class="benefit-card '+cls+'"><div class="b-label">'+lbl+'</div><div class="b-amount">₱'+amt+'</div><div class="b-desc">'+desc+'</div></div>';
   const illRows=buildSLSIIllusRows(slsiYears,d.rows,d.ageNum,d.faceInt,d.gcb,true);
-  const divVals=Object.values(d.rows).filter(r=>r.cashDiv&&r.cashDiv>0).slice(0,10);
-  const avgDivVal=divVals.length>0?fmtN(Math.round(divVals.reduce((s,r)=>s+r.cashDiv,0)/divVals.length)):'';
+  // Average yearly dividend across the first 10 policy years, taken straight
+  // from the proposal's own Illustrative Cash Dividend column. Years are read
+  // in explicit numeric order (object key order is not guaranteed for the
+  // integer-like keys used here), and fall back to the verified reference
+  // table for any year the PDF didn't print.
+  const divYrs=[];
+  for(let y=1;y<=10;y++){
+    const rr=d.rows[y]||{};
+    let cd=(rr.cashDiv!=null&&rr.cashDiv>0)?rr.cashDiv:null;
+    if(cd==null&&SLSI_KEYYEARS.indexOf(y)>-1){
+      const rf=slsiRefRow(slsiYears,y,d.faceInt);
+      if(rf.cashDiv)cd=rf.cashDiv;
+    }
+    if(cd!=null)divYrs.push(cd);
+  }
+  const avgDivVal=divYrs.length>0?fmtN(Math.round(divYrs.reduce((s,v)=>s+v,0)/divYrs.length)):'';
   const totalPremNum=parseFloat((d.totalPremium||'0').replace(/,/g,''))||0;
   // Compute total by summing all components
   const _sp=s=>parseFloat((s||'0').replace(/,/g,''))||0;
@@ -1320,7 +1368,7 @@ function renderSLSIView(id,d,pdfUrl){
     '<div class="section">'+st('🛡️','Core Benefits')+
     '<div class="benefits-grid">'+bc('navy-bar','Life Insurance Coverage',liD,'200% of Face Amount guaranteed from Day 1 until age 100.')+'<div class="benefit-card green-bar"><div class="b-label">Guaranteed Cash Benefit (from Year 6)</div><div class="b-amount" style="font-size:28px;">₱'+gcbD+' /year</div><div class="b-desc">6% of Face Amount annually starting end of Year 6 until age 100.</div></div>'+bc('','Centenarian Bonus (25% × 4)',c25+' each','25% of Face Amount paid at ages 80, 85, 90, and 95.')+bc('','Living Benefit Rider (LBR)','Up to 60% of Face','Advance if diagnosed terminally ill (≤12 months). FREE rider.')+
     (d.hasWPD?bc('','Waiver of Premium on Death (WPD)','Premium Waived','Waives remaining premiums if initial owner passes before age 21 of insured.'):'') +
-    '<div class="benefit-card gold-bar"><div class="b-label">Average Yearly Dividends</div><div class="b-amount-wrap"><span class="b-amount-prefix" style="font-size:28px;font-weight:700;">₱</span><input class="b-amount-input edit-cell" style="font-size:28px;font-weight:700;" value="'+avgDivVal+'" placeholder="enter amount"></div><div class="b-edit-hint">✎ Editable</div><div class="b-desc">Non-guaranteed; based on 4.50% p.a.</div></div>'+
+    '<div class="benefit-card gold-bar"><div class="b-label">Average Yearly Dividends</div><div class="b-amount-wrap"><span class="b-amount-prefix" style="font-size:28px;font-weight:700;">₱</span><input class="b-amount-input edit-cell" style="font-size:28px;font-weight:700;" value="'+avgDivVal+'" placeholder="enter amount"></div><div class="b-edit-hint">✎ Editable</div><div class="b-desc">Average of policy years 1–10. Non-guaranteed; based on 4.50% p.a.</div></div>'+
     '</div></div>'+
     '<div class="section">'+st('🎖️','Centenarian Bonus Schedule')+'<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">25% of Face Amount (₱'+c25+') at each anniversary. Total = ₱'+fmtN(d.faceInt)+'.</p>'+
     '<div class="cent-grid"><div class="cent-box"><div class="cent-age">80</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">85</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">90</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div><div class="cent-box"><div class="cent-age">95</div><div class="cent-lbl">Years Old</div><div class="cent-val">₱'+c25+'</div></div></div></div>'+
