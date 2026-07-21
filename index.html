@@ -126,7 +126,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .doc-insured-meta{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;line-height:1.6;text-align:right;}
 .badge-strip{background:var(--gold);padding:9px 40px;font-size:11px;font-weight:700;color:var(--navy);letter-spacing:0.1em;text-transform:uppercase;display:flex;gap:20px;flex-wrap:wrap;}
 .badge-strip span::before{content:'✦ ';}
-.doc-body{padding:32px 40px 60px;max-width:1100px;}
+.doc-body{padding:32px 64px 60px;max-width:1100px;margin:0 auto;}
 .notice{background:var(--amber-light);border:1px solid #E8C97A;border-radius:8px;padding:11px 16px;font-size:12px;color:#7A5C10;margin-bottom:28px;display:flex;gap:10px;align-items:flex-start;line-height:1.5;}
 .section{margin-bottom:32px;}
 .section-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--navy);border-bottom:2px solid var(--gold);padding-bottom:7px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
@@ -291,7 +291,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   .badge-strip{padding:8px 18px;font-size:10px;gap:10px;}
 
   /* Doc body */
-  .doc-body{padding:18px 16px 40px;}
+  .doc-body{padding:18px 20px 40px;}
 
   /* Premium grid — 1 col on phone */
   .premium-grid{grid-template-columns:1fr!important;}
@@ -353,6 +353,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   /* p-card value */
   .p-card-value{font-size:17px;}
   .b-amount{font-size:17px!important;}
+  .b-amount-input{font-size:17px!important;}
+  .b-amount-prefix{font-size:17px!important;}
 
   /* IP stamp */
   .ip-stamp{font-size:10px;padding:5px 10px;}
@@ -374,13 +376,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   .section-title{font-size:14px;}
   .gate-title{font-size:18px;}
   .b-amount{font-size:16px!important;}
+  .b-amount-input{font-size:16px!important;}
+  .b-amount-prefix{font-size:16px!important;}
   .product-switcher{grid-template-columns:1fr 1fr 1fr;}
 }
 
 /* iPad landscape — sidebar visible as normal */
 @media (min-width: 901px) and (max-width: 1100px) {
   :root{--sidebar-w:250px;}
-  .doc-body{padding:24px 24px 50px;}
+  .doc-body{padding:24px 40px 50px;}
   .doc-header-inner{padding:24px 28px 18px;}
   .premium-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
@@ -390,11 +394,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .main{padding-bottom:env(safe-area-inset-bottom,0);}
 .gate-card{padding-bottom:max(40px,env(safe-area-inset-bottom,40px));}
 
-/* iOS input zoom fix — font-size >= 16px prevents zoom */
+/* iOS input zoom fix — font-size >= 16px prevents zoom.
+   NOTE: these are MINIMUMS, not fixed sizes. The big editable benefit
+   amounts (.b-amount-input) must visually match the non-editable
+   .b-amount figures beside them (e.g. Guaranteed Cash Benefit), so they
+   are set to 28px here and shrink in the media queries below exactly as
+   .b-amount does. A blanket 16px here previously overrode their inline
+   28px and made the Average Yearly Dividends look far smaller than the
+   card next to it. The generic input rule below must stay 16px. */
 input,select,textarea{font-size:16px!important;}
 .gate-input{font-size:16px!important;}
 .edit-cell{font-size:13px!important;}
-.b-amount-input{font-size:16px!important;}
+.b-amount-input{font-size:28px!important;}
+.b-amount-prefix{font-size:28px!important;}
 
 /* iOS button active states */
 button:active,.upload-btn:active,.gate-btn:active,.pm-tab:active,.var-tab:active,.save-jpg-btn:active{
@@ -1461,9 +1473,15 @@ function parseSFW(text,filename){
   const totalPremium=tpMatch?tpMatch[1]:(psAmts[psAmts.length-1]||'0');
 
   // --- Option label ---
+  // Option label. NOTE: the ordering matters — the most specific
+  // combination must be tested first. A previous version tested bare
+  // `hasCIB` first, which swallowed every CIB case into "Option A (Full)"
+  // (even when ADB/TDB were absent, so it wasn't actually full) and left
+  // the later `else if(hasCIB)` branch unreachable, meaning "Option C"
+  // could never appear.
   let optionLabel='Basic';
-  if(hasCIB)optionLabel='Option A (Full)';
-  else if(hasADB&&hasTDB&&!hasCIB)optionLabel='Option B (+ADB+TDB)';
+  if(hasCIB&&hasADB&&hasTDB)optionLabel='Option A (Full)';
+  else if(hasADB&&hasTDB)optionLabel='Option B (+ADB+TDB)';
   else if(hasCIB)optionLabel='Option C (+CIB)';
   else if(hasADB||hasTDB)optionLabel='With Riders';
 
@@ -1602,6 +1620,21 @@ function renderSFWView(id,d,pdfUrl){
   for(let a=ageNum+payYears;a<=ageNum+payYears+2;a++){const v=(d.rows[a]||{}).pub;if(v&&v>0){loyaltyBonus=Math.round(v/Math.pow(SFW_ACC_RATE,a-(ageNum+payYears)));break;}}
   // ── VARIANT FACTOR (relative to FWA 10 base) ──
   const varFactor=SFW_FACTORS[payYears]||1.0;
+  // Note 1 previously rendered as "This is Basic ." — a sentence with no
+  // object, which reads as if it had been cut off. Compose a complete
+  // sentence that names the plan and spells out which riders are actually
+  // attached, so the label is self-explanatory to the client.
+  const sfwRiderNames=[];
+  if(d.hasADB)sfwRiderNames.push('Accidental Death Benefit');
+  if(d.hasTDB)sfwRiderNames.push('Total Disability Benefit');
+  if(d.hasCIB)sfwRiderNames.push('Critical Illness Benefit');
+  const sfwNote1='This plan is <strong>'+variantLabel+'</strong> — <strong>'+d.optionLabel+'</strong>'+
+    (sfwRiderNames.length
+      ? ', which includes the '+(sfwRiderNames.length===1
+          ? sfwRiderNames[0]
+          : sfwRiderNames.slice(0,-1).join(', ')+' and '+sfwRiderNames[sfwRiderNames.length-1])+
+        ' rider'+(sfwRiderNames.length>1?'s':'')+'.'
+      : ' (base plan only, with no supplementary riders attached).');
   const variantFactorLabel=payYears===10?'FWA 10 (Base — Factor: 1.0000)':payYears===15?'FWA 15 (Factor vs FWA 10: 0.7194)':'FWA 20 (Factor vs FWA 10: 0.5836)';
   const st=(icon,txt)=>'<div class="section-title">'+icon+' '+txt+'</div>';
   const bc=(cls,lbl,amt,desc)=>'<div class="benefit-card '+cls+'"><div class="b-label">'+lbl+'</div><div class="b-amount">'+amt+'</div><div class="b-desc">'+desc+'</div></div>';
@@ -1739,7 +1772,7 @@ function renderSFWView(id,d,pdfUrl){
     '<div id="est-banner-ret-'+id+'" style="display:none;background:var(--gold-pale,#FBF3E4);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--navy);">📐 <strong>Estimated for <span id="est-banner-ret-name-'+id+'"></span></strong> — derived from your uploaded '+variantShort+' proposal using Sun Life\'s 4.5% accumulation math and cross-variant factors. Guaranteed Cash Value and Accumulated Endowment are near-identical across variants; Total Living Benefit shifts because dividends and Paid-Up Bonus differ. <strong>For exact figures, generate and upload the actual '+'<span id="est-banner-ret-name2-'+id+'"></span>'+' proposal.</strong> Switch back to '+variantShort+' for exact uploaded values.</div>'+
     '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Guaranteed ₱'+fmt(faceInt*0.05)+'/year for <strong>8 consecutive years</strong>. Total: ₱'+fmt(faceInt*0.4)+'. <span style="color:var(--gold);font-weight:600;">✎ Click any cell to edit.</span></p>'+
     '<div class="ret-table-wrap"><table class="data-table" style="min-width:560px;"><thead><tr><th style="text-align:left;">Age</th><th>Guar. Cash Value</th><th>Annual Endowment</th><th>Accum. Endowment</th><th>Total Living Benefit</th></tr></thead><tbody id="ret-tbody-'+id+'">'+buildSFWRetRows(d.rows,faceInt)+'</tbody></table></div></div>'+
-    '<div class="section">'+st('📋','Important Notes')+'<ul class="notes-list"><li><span class="dot">1</span>This is <strong>'+d.optionLabel+'</strong>.</li><li><span class="dot">2</span>Dividends are <strong>not guaranteed</strong> and start from the '+(payYears+1)+'th policy year.</li><li><span class="dot">3</span>Special Paid-Up Bonus is earned during the '+payYears+'-year payment period'+(payYears!==10?' — Factor vs FWA 10: <strong>'+varFactor.toFixed(4)+'</strong>':'')+'.</li><li><span class="dot">4</span>Guaranteed Cash Benefits (₱'+fmt(faceInt*0.05)+'/year) begin at age 65 for 8 years.</li><li><span class="dot">5</span>Cooling-Off Period of 15 days (20 days for e-policy) applies.</li><li><span class="dot">6</span>Terminating early may result in a loss.'+(payYears!==10?' Premium is <strong>'+(Math.round((1-varFactor)*10000)/100)+'% lower</strong> than FWA 10 due to longer payment term.':'')+'</li></ul></div>'+
+    '<div class="section">'+st('📋','Important Notes')+'<ul class="notes-list"><li><span class="dot">1</span>'+sfwNote1+'</li><li><span class="dot">2</span>Dividends are <strong>not guaranteed</strong> and start from the '+(payYears+1)+'th policy year.</li><li><span class="dot">3</span>Special Paid-Up Bonus is earned during the '+payYears+'-year payment period'+(payYears!==10?' — Factor vs FWA 10: <strong>'+varFactor.toFixed(4)+'</strong>':'')+'.</li><li><span class="dot">4</span>Guaranteed Cash Benefits (₱'+fmt(faceInt*0.05)+'/year) begin at age 65 for 8 years.</li><li><span class="dot">5</span>Cooling-Off Period of 15 days (20 days for e-policy) applies.</li><li><span class="dot">6</span>Terminating early may result in a loss.'+(payYears!==10?' Premium is <strong>'+(Math.round((1-varFactor)*10000)/100)+'% lower</strong> than FWA 10 due to longer payment term.':'')+'</li></ul></div>'+
     '<div class="doc-footer"><p>Prepared by <strong>'+d.preparedBy+'</strong> · Branch: <strong>'+d.branch+'</strong> · Date: <strong>'+d.propDate+'</strong></p><p style="margin-top:5px;">Sun Life of Canada (Philippines), Inc. · <strong>Not a contract of insurance.</strong></p><div style="display:flex;justify-content:center;margin-top:14px;"><div class="ip-stamp">© &nbsp;<strong>JCC Business Solutions. All Rights Reserved.</strong></div></div></div>'+
     '</div>';
   container.appendChild(div);
