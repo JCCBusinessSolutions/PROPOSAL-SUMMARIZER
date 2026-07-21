@@ -1209,14 +1209,23 @@ function slsiRefRow(variant, yr, faceInt){
   };
 }
 // Builds the <tr> rows for the Cash Benefit Illustration -- Key Years table.
-// useRealRows=true uses the actual parsed PDF data (100% match to what was
-// uploaded); false uses the scaled reference table (for variant tabs other
-// than the one actually uploaded).
+// Real parsed PDF data (when parseSLSIRows successfully extracted it) always
+// wins for accuracy; any cell it didn't catch -- or the whole row, if this is
+// a variant tab other than what was actually uploaded -- falls back to the
+// verified reference table so the grid is never blank.
 function buildSLSIIllusRows(variant, rows, ageNum, faceInt, gcb, useRealRows){
   const ecv=v=>'<input class="edit-cell" style="min-width:80px;" value="'+(v?fmtN(v):'')+'" placeholder="\u2014">';
   let html='';
   for(const yr of SLSI_KEYYEARS){
-    const r=useRealRows?(rows[yr]||{}):slsiRefRow(variant,yr,faceInt);
+    const real=useRealRows?(rows[yr]||{}):{};
+    const ref=slsiRefRow(variant,yr,faceInt);
+    const r={
+      gcv:        real.gcv!=null        ? real.gcv        : ref.gcv,
+      accumEndow: real.accumEndow!=null ? real.accumEndow : ref.accumEndow,
+      cashDiv:    real.cashDiv!=null    ? real.cashDiv    : ref.cashDiv,
+      accumDiv:   real.accumDiv!=null   ? real.accumDiv   : ref.accumDiv,
+      tlb:        real.tlb!=null        ? real.tlb        : ref.tlb
+    };
     const eA=(yr>=6)?gcb:null;
     html+='<tr><td class="age-col" style="text-align:center;">'+yr+' <span class="yr-tag">age '+(ageNum+yr)+'</span></td><td>'+ecv(r.gcv)+'</td><td style="background:'+(yr>=6?'rgba(30,107,74,0.06)':'')+';">'+ecv(eA)+'</td><td>'+ecv(r.accumEndow)+'</td><td>'+ecv(r.cashDiv)+'</td><td>'+ecv(r.accumDiv)+'</td><td>'+ecv(r.tlb)+'</td></tr>';
   }
